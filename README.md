@@ -95,5 +95,3 @@ You can go to [tensorrt](./tensorrt) For details.
 
 
 ### Be aware that this is the refactored version of the original codebase. You can go to the `old` directory for original implementation.
-
-
