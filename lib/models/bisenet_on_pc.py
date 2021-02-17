@@ -1,8 +1,10 @@
+import sys
+sys.path.append('/home/vision/project/BiSeNet')
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from lib.models.bisenetv2 import *
-import os, sys
 
 class DetailBranch_pc(nn.Module):
 
@@ -23,6 +25,13 @@ class DetailBranch_pc(nn.Module):
             ConvBNReLU(128, 128, 3, stride=1),
         )
 
+    def forward(self, x):
+        feat = self.S1(x)
+        feat = self.S2(feat)
+        feat = self.S3(feat)
+        #print('Detail Branch result: ', feat.size())
+        return feat
+
 class StemBlock_pc(nn.Module):
     def __init__(self):
         super(StemBlock_pc, self).__init__()
@@ -41,6 +50,7 @@ class StemBlock_pc(nn.Module):
         feat_right = self.right(feat)
         feat = torch.cat([feat_left, feat_right], dim=1)
         feat = self.fuse(feat)
+        #print('stem block result: ', feat.size())
         return feat
 
 class SemanticBranch_pc(nn.Module):
@@ -70,6 +80,7 @@ class SemanticBranch_pc(nn.Module):
         feat4 = self.S4(feat3)
         feat5_4 = self.S5_4(feat4)
         feat5_5 = self.S5_5(feat5_4)
+        #print('Semantic branch result: ', feat5_5.size())
         return feat2, feat3, feat4, feat5_4, feat5_5
 
 
@@ -94,16 +105,25 @@ class BiSeNet_pc(BiSeNetV2):
                     else:
                         nn.init.ones_(module.weight)
                     nn.init.zeros_(module.bias)
+        
+        if torch.cuda.is_available():
+            print('putting model on cuda')
+            self.cuda()
 
     def forward(self, x):
-        super(BiSeNet_pc, self).forward(x)
+        return super(BiSeNet_pc, self).forward(x)
 
     
-    #test codes
-    if __name__ == "__main__":
-        os.chdir('~/project/BiSeNet')
-        x = torch.randn(16, 6, 1024, 2048)
-        model = BiSeNet_pc(n_classes=19)
-        outs = model(x)
-        for out in outs:
-            print(out.size())
+#test codes
+if __name__ == "__main__":
+    os.chdir('/home/vision/project/BiSeNet')
+    torch.cuda.empty_cache()
+    model = BiSeNet_pc(n_classes=19, output_aux=True)
+    #print(torch.cuda.memory_summary(device=None, abbreviated=False))
+    x = torch.randn(2, 6, 1024, 2048)
+    x = x.to(device='cuda')
+    model.eval()
+    outs = model(x)
+
+    for out in outs:
+        print(out.size())

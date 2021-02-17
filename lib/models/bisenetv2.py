@@ -332,6 +332,7 @@ class BiSeNetV2(nn.Module):
         feat_head = self.bga(feat_d, feat_s)
 
         logits = self.head(feat_head)
+
         if self.output_aux:
             logits_aux2 = self.aux2(feat2)
             logits_aux3 = self.aux3(feat3)
@@ -339,6 +340,7 @@ class BiSeNetV2(nn.Module):
             logits_aux5_4 = self.aux5_4(feat5_4)
             return logits, logits_aux2, logits_aux3, logits_aux4, logits_aux5_4
         pred = logits.argmax(dim=1)
+        print("prediction: ", pred.size())
         return pred
 
     def init_weights(self):
