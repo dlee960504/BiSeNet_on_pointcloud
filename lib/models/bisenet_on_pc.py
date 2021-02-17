@@ -118,10 +118,10 @@ class BiSeNet_pc(BiSeNetV2):
 if __name__ == "__main__":
     os.chdir('/home/vision/project/BiSeNet')
     torch.cuda.empty_cache()
-    model = BiSeNet_pc(n_classes=19, output_aux=True)
+    model = BiSeNet_pc(n_classes=19, output_aux=False)
     #print(torch.cuda.memory_summary(device=None, abbreviated=False))
-    x = torch.randn(2, 6, 1024, 2048)
-    x = x.to(device='cuda')
+    x = torch.randn(128, 6, 64, 512).cuda()
+    #x = x.to(device='cuda')
     model.eval()
     outs = model(x)
 
