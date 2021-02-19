@@ -10,9 +10,9 @@ from torch.utils.data import Dataset, DataLoader
 #import torch.distributed as dist
 import numpy as np
 
-import lib.transform_cv2 as T
-from lib.sampler import RepeatedDistSampler
-from lib.base_dataset import BaseDataset, TransformationTrain, TransformationVal
+#import lib.transform_cv2 as T
+#from lib.sampler import RepeatedDistSampler
+#from lib.base_dataset import BaseDataset, TransformationTrain, TransformationVal
 
 
 labels_info = [
@@ -52,7 +52,7 @@ labels_info = [
 class KITTIconverted(Dataset):
     '''
     '''
-    def __init__(self, root_path, trans_func=None, mode='train'):
+    def __init__(self, root_path, list_path=None, trans_func=None, mode='train'):
         super(KITTIconverted, self).__init__()
         assert mode in ('train', 'val', 'test')
         self.mode = mode
@@ -62,14 +62,18 @@ class KITTIconverted(Dataset):
         self.lb_ignore = 255
         self.lb_map = np.arange(256).astype(np.uint8)
 
+        self._to_tensor = ToTensor()
+
         self.data_paths = []
-        with open(annpath, 'r') as f:
+        if list_path == None:
+            list_path = root_path + '/data_list.txt'
+        with open(list_path, 'r') as f:
             npy_names = f.read().splitlines()
             for npy_name in npy_names:
                 self.data_paths.append(os.path.join(root_path, npy_name))
 
-        for elem in labels_info:
-            self.lb_map[elem['id']] = elem['catid']
+        #for elem in labels_info:
+            #self.lb_map[elem['id']] = elem['catid']
 
     def __len__(self):
         return len(self.data_paths)
@@ -81,27 +85,28 @@ class KITTIconverted(Dataset):
         data_path = self.data_paths[idx]
         data = np.load(data_path)
         img, label = data[:,:,:5], data[:,:,5]
-        sample = dict(img=img, label=label)
+        #print('inside getitem: ', img.shape, label.shape)
+        sample = {'img': img, 'label': label}
         if not self.trans_func is None:
             sample = self.trans_func(sample)
-        sample = self.to_tensor(sample)
+        sample = self._to_tensor(sample)
         #img, label = img_lab['img'], img_lab['label']
         #return img.detach(), label.detach()
         return sample
 
-def get_data_loader(datapth, annpath, ims_per_gpu, scales, cropsize, max_iter=None, mode='train', distributed=True):
+def get_data_loader(datapath, batchsize, listpath=None, max_iter=None, mode='train', distributed=False):
     if mode == 'train':
-        trans_func = TransformationTrain(scales, cropsize)
-        batchsize = ims_per_gpu
+        #trans_func = TransformationTrain(scales, cropsize)
+        trans_func = None
         shuffle = True
         drop_last = True
     elif mode == 'val':
-        trans_func = TransformationVal()
-        batchsize = ims_per_gpu
+        #trans_func = TransformationVal()
+        trans_func = None
         shuffle = False
         drop_last = False
 
-    ds = CityScapes(datapth, annpath, trans_func=trans_func, mode=mode)
+    ds = KITTIconverted(datapath, trans_func=trans_func, mode=mode)
 
     if distributed:
         assert dist.is_available(), "dist should be initialzed"
@@ -132,19 +137,19 @@ def get_data_loader(datapth, annpath, ims_per_gpu, scales, cropsize, max_iter=No
         )
     return dl
 
+class ToTensor(object):
+    def __call__(self, sample):
+        image, label = sample['img'], sample['label']
+        image = image.transpose((2, 0, 1))
+        return {'img': torch.tensor(image), 'label': torch.tensor(label)}
 
 
 if __name__ == "__main__":
-    from tqdm import tqdm
+    #from tqdm import tqdm
     from torch.utils.data import DataLoader
-    ds = CityScapes('./data/', mode='val')
-    dl = DataLoader(ds,
-                    batch_size = 4,
-                    shuffle = True,
-                    num_workers = 4,
-                    drop_last = True)
-    for imgs, label in dl:
-        print(len(imgs))
-        for el in imgs:
-            print(el.size())
-        break
+    #ds = KITTIconverted('home/vision/project/instance_dataset_gen/Test_data/Kitti/npydata', mode='val')
+    #dl = DataLoader(ds, batch_size = 4, shuffle = True, num_workers = 4, drop_last = True)
+    datapath = '../../instance_dataset_gen/Test_data/Kitti/npydata'
+    dl = get_data_loader(datapath, 2)
+    for sample in dl:
+        print("image size from dataloader: ", sample['img'].shape)
