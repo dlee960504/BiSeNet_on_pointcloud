@@ -106,7 +106,7 @@ def get_data_loader(datapath, batchsize, listpath=None, max_iter=None, mode='tra
         shuffle = False
         drop_last = False
 
-    ds = KITTIconverted(datapath, trans_func=trans_func, mode=mode)
+    ds = KITTIconverted(datapath, list_path=listpath, trans_func=trans_func, mode=mode)
 
     if distributed:
         assert dist.is_available(), "dist should be initialzed"
@@ -141,7 +141,7 @@ class ToTensor(object):
     def __call__(self, sample):
         image, label = sample['img'], sample['label']
         image = image.transpose((2, 0, 1))
-        return {'img': torch.tensor(image), 'label': torch.tensor(label)}
+        return {'img': torch.tensor(image), 'label': torch.tensor(label, dtype=torch.long)}
 
 
 if __name__ == "__main__":
@@ -149,7 +149,15 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     #ds = KITTIconverted('home/vision/project/instance_dataset_gen/Test_data/Kitti/npydata', mode='val')
     #dl = DataLoader(ds, batch_size = 4, shuffle = True, num_workers = 4, drop_last = True)
-    datapath = '../../instance_dataset_gen/Test_data/Kitti/npydata'
-    dl = get_data_loader(datapath, 2)
+
+    # at lab
+    # datapath = '../../instance_dataset_gen/Test_data/Kitti/npydata'
+    # listpath = '../../instance_dataset_gen/Test_data/Kitti/data_list.txt'
+
+    # at home
+    datapath = '../../pointcloud_spherical_gen/Test_data/Kitti/npydata'
+    listpath = '../../pointcloud_spherical_gen/Test_data/Kitti/data_list.txt'
+
+    dl = get_data_loader(datapath, 5, listpath=listpath)
     for sample in dl:
         print("image size from dataloader: ", sample['img'].shape)

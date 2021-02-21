@@ -5,6 +5,8 @@ import sys
 sys.path.insert(0, '.')
 import os
 import os.path as osp
+sys.path.append('..')
+
 import random
 import logging
 import time
@@ -19,7 +21,7 @@ from torch.utils.data import DataLoader
 
 from lib.models import model_factory
 from configs import cfg_factory
-from lib.cityscapes_cv2 import get_data_loader
+from lib.kitti_converted import get_data_loader
 from tools.evaluate import eval_model
 from lib.ohem_ce_loss import OhemCELoss
 from lib.lr_scheduler import WarmupPolyLrScheduler
@@ -48,10 +50,10 @@ torch.backends.cudnn.deterministic = True
 
 def parse_args():
     parse = argparse.ArgumentParser()
-    parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
-    parse.add_argument('--port', dest='port', type=int, default=44554,)
+    #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
+    #parse.add_argument('--port', dest='port', type=int, default=44554,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetonpc',)
-    parse.add_argument('--finetune-from', type=str, default=None,)
+    #parse.add_argument('--finetune-from', type=str, default=None,)
     return parse.parse_args()
 
 args = parse_args()
@@ -61,9 +63,10 @@ cfg = cfg_factory[args.model]
 
 def set_model():
     net = model_factory[cfg.model_type](cfg.num_cls)
-    if not args.finetune_from is None:
-        net.load_state_dict(torch.load(args.finetune_from, map_location='cpu'))
+    # if not args.finetune_from is None:
+    #     net.load_state_dict(torch.load(args.finetune_from, map_location='cpu'))
     if cfg.use_sync_bn: net = set_syncbn(net)
+    net.to(dtype=torch.float64)
     net.cuda()
     net.train()
     criteria_pre = OhemCELoss(0.7)
@@ -133,10 +136,7 @@ def train():
     is_dist = dist.is_initialized()
 
     ## dataset
-    dl = get_data_loader(
-            cfg.im_root, cfg.train_im_anns,
-            cfg.ims_per_gpu, cfg.scales, cfg.cropsize,
-            cfg.max_iter, mode='train', distributed=is_dist)
+    dl = get_data_loader( cfg.im_root, cfg.ims_per_gpu, listpath=cfg.train_im_anns, max_iter=cfg.max_iter, mode='train')
 
     ## model
     net, criteria_pre, criteria_aux = set_model()
@@ -150,7 +150,7 @@ def train():
         net, optim = amp.initialize(net, optim, opt_level=opt_level)
 
     ## ddp training
-    net = set_model_dist(net)
+    # net = set_model_dist(net)
 
     ## meters
     time_meter, loss_meter, loss_pre_meter, loss_aux_meters = set_meters()
@@ -161,9 +161,10 @@ def train():
         warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
 
     ## train loop
-    for it, (im, lb) in enumerate(dl):
-        im = im.cuda()
-        lb = lb.cuda()
+    for it, sample in enumerate(dl):
+        print(it, ' th training loop')
+        im = sample['img'].cuda()
+        lb = sample['label'].cuda()
 
         lb = torch.squeeze(lb, 1)
 
@@ -197,25 +198,20 @@ def train():
     ## dump the final model and evaluate the result
     save_pth = osp.join(cfg.respth, 'model_final.pth')
     logger.info('\nsave models to {}'.format(save_pth))
-    state = net.module.state_dict()
-    if dist.get_rank() == 0: torch.save(state, save_pth)
+    state = net.state_dict()
+    #if dist.get_rank() == 0: torch.save(state, save_pth)
 
-    logger.info('\nevaluating the final model')
+    #logger.info('\nevaluating the final model')
     torch.cuda.empty_cache()
-    heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns)
-    logger.info(tabulate([mious, ], headers=heads, tablefmt='orgtbl'))
+    #heads, mious = eval_model(net, 2, cfg.im_root, cfg.val_im_anns)
+    #logger.info(tabulate([mious, ], headers=heads, tablefmt='orgtbl'))
 
     return
 
 
 def main():
-    torch.cuda.set_device(args.local_rank)
-    dist.init_process_group(
-        backend='nccl',
-        init_method='tcp://127.0.0.1:{}'.format(args.port),
-        world_size=torch.cuda.device_count(),
-        rank=args.local_rank
-    )
+    #torch.cuda.set_device(args.local_rank)
+    #dist.init_process_group( backend='nccl', init_method='tcp://127.0.0.1:{}'.format(args.port), world_size=torch.cuda.device_count(), rank=args.local_rank)
     if not osp.exists(cfg.respth): os.makedirs(cfg.respth)
     setup_logger('{}-train'.format(cfg.model_type), cfg.respth)
     train()

@@ -1,5 +1,6 @@
 import sys
-sys.path.append('/home/vision/project/BiSeNet')
+#sys.path.append('/home/vision/project/BiSeNet')
+sys.path.append('~/project/BiSeNet_on_pointcloud')
 import os
 import torch
 import torch.nn as nn
@@ -11,7 +12,7 @@ class DetailBranch_pc(nn.Module):
     def __init__(self):
         super(DetailBranch_pc, self).__init__()
         self.S1 = nn.Sequential(
-            ConvBNReLU(6, 64, 3, stride=2),
+            ConvBNReLU(5, 64, 3, stride=2),
             ConvBNReLU(64, 64, 3, stride=1),
         )
         self.S2 = nn.Sequential(
@@ -35,7 +36,7 @@ class DetailBranch_pc(nn.Module):
 class StemBlock_pc(nn.Module):
     def __init__(self):
         super(StemBlock_pc, self).__init__()
-        self.conv = ConvBNReLU(6, 16, 3, stride=2)
+        self.conv = ConvBNReLU(5, 16, 3, stride=2)
         self.left = nn.Sequential(
             ConvBNReLU(16, 8, 1, stride=1, padding=0),
             ConvBNReLU(8, 16, 3, stride=2),
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
     model = BiSeNet_pc(n_classes=19, output_aux=False)
     #print(torch.cuda.memory_summary(device=None, abbreviated=False))
-    x = torch.randn(128, 6, 64, 512).cuda()
+    x = torch.randn(128, 5, 64, 512).cuda()
     #x = x.to(device='cuda')
     model.eval()
     outs = model(x)
