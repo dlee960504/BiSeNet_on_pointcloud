@@ -45,9 +45,6 @@ torch.backends.cudnn.deterministic = True
 #  torch.backends.cudnn.benchmark = True
 #  torch.multiprocessing.set_sharing_strategy('file_system')
 
-
-
-
 def parse_args():
     parse = argparse.ArgumentParser()
     #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
@@ -136,7 +133,7 @@ def train():
     is_dist = dist.is_initialized()
 
     ## dataset
-    dl = get_data_loader( cfg.im_root, cfg.ims_per_gpu, listpath=cfg.train_im_anns, max_iter=cfg.max_iter, mode='train')
+    dl = get_data_loader(cfg.im_root, cfg.batch_size, listpath=cfg.train_im_anns, max_iter=cfg.max_iter, mode='train')
 
     ## model
     net, criteria_pre, criteria_aux = set_model()
@@ -161,44 +158,65 @@ def train():
         warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
 
     ## train loop
-    for it, sample in enumerate(dl):
-        print(it, ' th training loop')
-        im = sample['img'].cuda()
-        lb = sample['label'].cuda()
+    epoch_iter = 0
+    step = 0
+    display_term = 5
 
-        lb = torch.squeeze(lb, 1)
+    while cfg.batch_size * step <= cfg.max_iter:
+        
+        logger.info('epoch {} started...'.format(epoch_iter))
 
-        optim.zero_grad()
-        logits, *logits_aux = net(im)
-        loss_pre = criteria_pre(logits, lb)
-        loss_aux = [crit(lgt, lb) for crit, lgt in zip(criteria_aux, logits_aux)]
-        loss = loss_pre + sum(loss_aux)
-        if has_apex:
-            with amp.scale_loss(loss, optim) as scaled_loss:
-                scaled_loss.backward()
-        else:
-            loss.backward()
-        optim.step()
-        torch.cuda.synchronize()
-        lr_schdr.step()
+        for it, sample in enumerate(dl):
+            #print(it, ' th training loop')
+            im = sample['img'].cuda()
+            lb = sample['label'].cuda()
 
-        time_meter.update()
-        loss_meter.update(loss.item())
-        loss_pre_meter.update(loss_pre.item())
-        _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
+            lb = torch.squeeze(lb, 1)
 
-        ## print training log message
-        if (it + 1) % 100 == 0:
-            lr = lr_schdr.get_lr()
-            lr = sum(lr) / len(lr)
-            print_log_msg(
-                it, cfg.max_iter, lr, time_meter, loss_meter,
-                loss_pre_meter, loss_aux_meters)
+            optim.zero_grad()
+            logits, *logits_aux = net(im)
+            loss_pre = criteria_pre(logits, lb)
+            loss_aux = [crit(lgt, lb) for crit, lgt in zip(criteria_aux, logits_aux)]
+            loss = loss_pre + sum(loss_aux)
+            if has_apex:
+                with amp.scale_loss(loss, optim) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
+            optim.step()
+            torch.cuda.synchronize()
+            lr_schdr.step()
+
+            time_meter.update()
+            loss_meter.update(loss.item())
+            loss_pre_meter.update(loss_pre.item())
+            _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
+
+            ## print training log message
+            if (it + 1) % 100 == 0:
+                lr = lr_schdr.get_lr()
+                lr = sum(lr) / len(lr)
+                print_log_msg(
+                    it, cfg.max_iter, lr, time_meter, loss_meter,
+                    loss_pre_meter, loss_aux_meters)
+
+            ## update iterator
+            step += 1
+
+        if epoch_iter % display_term == 0 and epoch_iter != 0:
+            save_pth = osp.join(cfg.respth,'model_epoch_{}.pth'.format(epoch_iter))
+            logger.info('\nsave models to {}'.format(save_pth))
+            state = net.state_dict()
+            torch.save(state, save_pth)
+
+        ## upate iterator
+        epoch_iter += 1
 
     ## dump the final model and evaluate the result
     save_pth = osp.join(cfg.respth, 'model_final.pth')
     logger.info('\nsave models to {}'.format(save_pth))
     state = net.state_dict()
+    torch.save(state, save_pth)
     #if dist.get_rank() == 0: torch.save(state, save_pth)
 
     #logger.info('\nevaluating the final model')

@@ -1,6 +1,10 @@
 import sys
-#sys.path.append('/home/vision/project/BiSeNet')
-sys.path.append('~/project/BiSeNet_on_pointcloud')
+home = False
+if home:
+    sys.path.append('~/project/BiSeNet_on_pointcloud')
+else:
+    sys.path.append('/home/vision/project/BiSeNet')
+
 import os
 import torch
 import torch.nn as nn

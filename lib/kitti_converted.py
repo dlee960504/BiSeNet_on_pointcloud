@@ -150,13 +150,13 @@ if __name__ == "__main__":
     #ds = KITTIconverted('home/vision/project/instance_dataset_gen/Test_data/Kitti/npydata', mode='val')
     #dl = DataLoader(ds, batch_size = 4, shuffle = True, num_workers = 4, drop_last = True)
 
-    # at lab
-    # datapath = '../../instance_dataset_gen/Test_data/Kitti/npydata'
-    # listpath = '../../instance_dataset_gen/Test_data/Kitti/data_list.txt'
-
-    # at home
-    datapath = '../../pointcloud_spherical_gen/Test_data/Kitti/npydata'
-    listpath = '../../pointcloud_spherical_gen/Test_data/Kitti/data_list.txt'
+    home = False
+    if home:
+        datapath = '../../pointcloud_spherical_gen/Test_data/Kitti/npydata'
+        listpath = '../../pointcloud_spherical_gen/Test_data/Kitti/data_list.txt'
+    else:
+        datapath = '../../instance_dataset_gen/Test_data/Kitti/npydata'
+        listpath = '../../instance_dataset_gen/Test_data/Kitti/data_list.txt'    
 
     dl = get_data_loader(datapath, 5, listpath=listpath)
     for sample in dl:
