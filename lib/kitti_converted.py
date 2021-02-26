@@ -15,7 +15,7 @@ import numpy as np
 #from lib.base_dataset import BaseDataset, TransformationTrain, TransformationVal
 
 
-labels_info = [
+labels_info_KITTI = [
     {"hasInstances": False, "category": "ground", "catid": 0, "name": "road", "ignoreInEval": True, "id": 40, "color": [255, 0, 255], "trainId": 255},
     {"hasInstances": False, "category": "ground", "catid": 0, "name": "sidewalk", "ignoreInEval": True, "id": 48, "color": [75, 0, 75], "trainId": 255},
     {"hasInstances": False, "category": "ground", "catid": 0, "name": "parking", "ignoreInEval": True, "id": 44, "color": [255, 150, 255], "trainId": 255},
@@ -47,6 +47,10 @@ labels_info = [
     {"hasInstances": False, "category": "moving", "catid": 1, "name": "moving-other-vehicle", "ignoreInEval": True, "id": 259, "color": [255, 0, 0], "trainId": 255},
 ]
 
+labels_info = [{"hasInstances": False, "category": "void", "catid": 0, "name": "unlabeled", "ignoreInEval": True, "id": 0, "color": [255, 255, 255], "trainId": 255},
+               {"hasInstances": False, "category": "void", "catid": 1, "name": "car", "ignoreInEval": False, "id": 1, "color": [0, 0, 255], "trainId": 1},
+               {"hasInstances": False, "category": "void", "catid": 2, "name": "pedestrian", "ignoreInEval": False, "id": 2, "color": [255, 0, 0], "trainId": 2}
+               {"hasInstances": False, "category": "void", "catid": 3, "name": "cyclist", "ignoreInEval": False, "id": 3, "color": [0, 255, 0], "trainId": 3}]
 
 
 class KITTIconverted(Dataset):
