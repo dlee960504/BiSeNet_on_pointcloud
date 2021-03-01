@@ -218,6 +218,9 @@ def eval_model(net, batch_size, im_root, im_ann, num_cls):
     heads.append('ms_flip_crop')
     mious.append(mIOU)
     logger.info('ms crop mIOU is: %s\n', mIOU)
+
+    
+
     return heads, mious
 
 
