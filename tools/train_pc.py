@@ -11,6 +11,7 @@ import random
 import logging
 import time
 import argparse
+from tqdm import tqdm
 import numpy as np
 from tabulate import tabulate
 
@@ -63,7 +64,7 @@ def set_model():
     # if not args.finetune_from is None:
     #     net.load_state_dict(torch.load(args.finetune_from, map_location='cpu'))
     if cfg.use_sync_bn: net = set_syncbn(net)
-    net.to(dtype=torch.float64)
+    net.to(dtype=torch.float)
     net.cuda()
     net.train()
     criteria_pre = OhemCELoss(0.7)
@@ -165,8 +166,8 @@ def train():
     while cfg.batch_size * step <= cfg.max_iter:
         
         logger.info('epoch {} started...'.format(epoch_iter))
-
-        for it, sample in enumerate(dl):
+        diter = enumerate(tqdm(dl))
+        for it, sample in diter:
             #print(it, ' th training loop')
             im = sample['img'].cuda()
             lb = sample['label'].cuda()
@@ -193,7 +194,7 @@ def train():
             _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
 
             ## print training log message
-            if (it + 1) % 100 == 0:
+            if (it + 1) % display_term == 0:
                 lr = lr_schdr.get_lr()
                 lr = sum(lr) / len(lr)
                 print_log_msg(

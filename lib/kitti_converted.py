@@ -44,12 +44,12 @@ labels_info_KITTI = [
     {"hasInstances": False, "category": "moving", "catid": 0, "name": "moving-on-rails", "ignoreInEval": True, "id": 256, "color": [255, 0, 0], "trainId": 255},
     {"hasInstances": False, "category": "moving", "catid": 1, "name": "moving-bus", "ignoreInEval": True, "id": 257, "color": [250, 80, 100], "trainId": 255},
     {"hasInstances": False, "category": "moving", "catid": 1, "name": "moving-truck", "ignoreInEval": True, "id": 258, "color": [180, 30, 80], "trainId": 255},
-    {"hasInstances": False, "category": "moving", "catid": 1, "name": "moving-other-vehicle", "ignoreInEval": True, "id": 259, "color": [255, 0, 0], "trainId": 255},
+    {"hasInstances": False, "category": "moving", "catid": 1, "name": "moving-other-vehicle", "ignoreInEval": True, "id": 259, "color": [255, 0, 0], "trainId": 255}
 ]
 
 labels_info = [{"hasInstances": False, "category": "void", "catid": 0, "name": "unlabeled", "ignoreInEval": True, "id": 0, "color": [255, 255, 255], "trainId": 255},
                {"hasInstances": False, "category": "void", "catid": 1, "name": "car", "ignoreInEval": False, "id": 1, "color": [0, 0, 255], "trainId": 1},
-               {"hasInstances": False, "category": "void", "catid": 2, "name": "pedestrian", "ignoreInEval": False, "id": 2, "color": [255, 0, 0], "trainId": 2}
+               {"hasInstances": False, "category": "void", "catid": 2, "name": "pedestrian", "ignoreInEval": False, "id": 2, "color": [255, 0, 0], "trainId": 2},
                {"hasInstances": False, "category": "void", "catid": 3, "name": "cyclist", "ignoreInEval": False, "id": 3, "color": [0, 255, 0], "trainId": 3}]
 
 
@@ -145,7 +145,7 @@ class ToTensor(object):
     def __call__(self, sample):
         image, label = sample['img'], sample['label']
         image = image.transpose((2, 0, 1))
-        return {'img': torch.tensor(image), 'label': torch.tensor(label, dtype=torch.long)}
+        return {'img': torch.tensor(image, dtype=torch.float), 'label': torch.tensor(label, dtype=torch.long)}
 
 
 if __name__ == "__main__":

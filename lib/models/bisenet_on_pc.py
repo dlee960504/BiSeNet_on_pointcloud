@@ -1,9 +1,12 @@
 import sys
 home = False
+sys.path.append('../..')
+'''
 if home:
     sys.path.append('~/project/BiSeNet_on_pointcloud')
 else:
     sys.path.append('/home/vision/project/BiSeNet')
+'''
 
 import os
 import torch
@@ -123,7 +126,7 @@ class BiSeNet_pc(BiSeNetV2):
 if __name__ == "__main__":
     os.chdir('/home/vision/project/BiSeNet')
     torch.cuda.empty_cache()
-    model = BiSeNet_pc(n_classes=19, output_aux=False)
+    model = BiSeNet_pc(n_classes=4, output_aux=False)
     #print(torch.cuda.memory_summary(device=None, abbreviated=False))
     x = torch.randn(128, 5, 64, 512).cuda()
     #x = x.to(device='cuda')
