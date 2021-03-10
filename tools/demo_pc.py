@@ -11,7 +11,6 @@ from tabulate import tabulate
 
 from tqdm import tqdm
 import numpy as np
-import cv2
 
 import torch
 
@@ -24,9 +23,7 @@ from tools import visualizer
 
 def parse_args():
     parse = argparse.ArgumentParser()
-    #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
     parse.add_argument('--weight-path', dest='weight_pth', type=str, default='../res/model_final.pth',)
-    #parse.add_argument('--port', dest='port', type=int, default=44553,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetonpc',)
     return parse.parse_args()
 
