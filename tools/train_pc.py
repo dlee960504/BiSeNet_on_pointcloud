@@ -161,57 +161,62 @@ def train():
     ## train loop
     epoch_iter = 0
     step = 0
-    display_term = 5
+    display_term = 500
+    save_term = 5
 
-    while cfg.batch_size * step <= cfg.max_iter:
+    while step <= cfg.max_iter:
+        try:
+            logger.info('epoch {} started...'.format(epoch_iter))
+            diter = enumerate(tqdm(dl))
+            for it, sample in diter:
+                #print(it, ' th training loop')
+                im = sample['img'].cuda()
+                lb = sample['label'].cuda()
+
+                lb = torch.squeeze(lb, 1)
+
+                optim.zero_grad()
+                logits, *logits_aux = net(im)
+                loss_pre = criteria_pre(logits, lb)
+                loss_aux = [crit(lgt, lb) for crit, lgt in zip(criteria_aux, logits_aux)]
+                loss = loss_pre + sum(loss_aux)
+                if has_apex:
+                    with amp.scale_loss(loss, optim) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    loss.backward()
+                optim.step()
+                torch.cuda.synchronize()
+                lr_schdr.step()
+
+                time_meter.update()
+                loss_meter.update(loss.item())
+                loss_pre_meter.update(loss_pre.item())
+                _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
+
+                ## print training log message
+                if (it + 1) % display_term == 0:
+                    lr = lr_schdr.get_lr()
+                    lr = sum(lr) / len(lr)
+                    print_log_msg(
+                        step, cfg.max_iter, lr, time_meter, loss_meter,
+                        loss_pre_meter, loss_aux_meters)
+
+                ## update iterator
+                step += 1
+
+            if epoch_iter % save_term == 0 and epoch_iter != 0:
+                save_pth = osp.join(cfg.respth,'model_epoch_{}.pth'.format(epoch_iter))
+                logger.info('\nsave models to {}'.format(save_pth))
+                state = net.state_dict()
+                torch.save(state, save_pth)
+
+            ## upate iterator
+            epoch_iter += 1
         
-        logger.info('epoch {} started...'.format(epoch_iter))
-        diter = enumerate(tqdm(dl))
-        for it, sample in diter:
-            #print(it, ' th training loop')
-            im = sample['img'].cuda()
-            lb = sample['label'].cuda()
-
-            lb = torch.squeeze(lb, 1)
-
-            optim.zero_grad()
-            logits, *logits_aux = net(im)
-            loss_pre = criteria_pre(logits, lb)
-            loss_aux = [crit(lgt, lb) for crit, lgt in zip(criteria_aux, logits_aux)]
-            loss = loss_pre + sum(loss_aux)
-            if has_apex:
-                with amp.scale_loss(loss, optim) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
-            optim.step()
-            torch.cuda.synchronize()
-            lr_schdr.step()
-
-            time_meter.update()
-            loss_meter.update(loss.item())
-            loss_pre_meter.update(loss_pre.item())
-            _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
-
-            ## print training log message
-            if (it + 1) % display_term == 0:
-                lr = lr_schdr.get_lr()
-                lr = sum(lr) / len(lr)
-                print_log_msg(
-                    it, cfg.max_iter, lr, time_meter, loss_meter,
-                    loss_pre_meter, loss_aux_meters)
-
-            ## update iterator
-            step += 1
-
-        if epoch_iter % display_term == 0 and epoch_iter != 0:
-            save_pth = osp.join(cfg.respth,'model_epoch_{}.pth'.format(epoch_iter))
-            logger.info('\nsave models to {}'.format(save_pth))
-            state = net.state_dict()
-            torch.save(state, save_pth)
-
-        ## upate iterator
-        epoch_iter += 1
+        except RuntimeError:
+            print('diminishing gradient problem. finish the training')
+            break
 
     ## dump the final model and evaluate the result
     save_pth = osp.join(cfg.respth, 'model_final.pth')

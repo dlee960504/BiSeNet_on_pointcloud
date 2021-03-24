@@ -106,9 +106,11 @@ venv.bak/
 ## Coin: 
 data
 data/
+datasets/
 play.py
 preprocess_data.py
 res/
+res*/
 adj.md
 tensorrt/build/*
 
