@@ -15,10 +15,10 @@ from lib.models.bisenet_on_pc import DetailBranch_pc, StemBlock_pc, SemanticBran
 class ContextAggregationModule(nn.Module):
     def __init__(self, in_c):
         super(ContextAggregationModule, self).__init__()
-        self.pool = nn.MaxPool2d(7, stride=1)
+        self.pool = nn.MaxPool2d(7, stride=1, padding=3)
         reduction = 16
         red_c = int(in_c/reduction)
-        self.S1 = ConvBNReLU(in_c, red_c, ks=1)
+        self.S1 = ConvBNReLU(in_c, red_c, ks=1, padding=0)
         self.S2 = nn.Sequential(
             nn.Conv2d(red_c, in_c, 1, stride=1),
             nn.BatchNorm2d(in_c),
@@ -44,10 +44,10 @@ class BiSeNet_pc2(BiSeNetV2):
         # input channel must be 5 (x,y,z,r,I)
         in_c = 5
         c = 64
-        self.init_conv = nn.Conv2d(in_c, c, 3, stride=2)
+        self.init_conv = nn.Conv2d(in_c, c, 3, stride=1, padding=1)
         self.cam = ContextAggregationModule(c)
-        self.detail = DetailBranch_pc()
-        self.segment = SemanticBranch_pc()
+        self.detail = DetailBranch_pc(c)
+        self.segment = SemanticBranch_pc(c)
 
         # initialize new branches
         new_branches = [self.init_conv, self.cam, self.detail, self.segment]
@@ -69,8 +69,9 @@ class BiSeNet_pc2(BiSeNetV2):
             self.cuda()
 
     def forward(self, x):
-        feat = self
-        return super(BiSeNet_pc2, self).forward(x)
+        feat = self.init_conv(x)
+        feat = self.cam(feat)
+        return super(BiSeNet_pc2, self).forward(feat)
 
     
 #test codes

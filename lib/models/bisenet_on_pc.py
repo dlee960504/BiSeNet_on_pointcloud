@@ -10,10 +10,10 @@ from lib.models.bisenetv2 import *
 
 class DetailBranch_pc(nn.Module):
 
-    def __init__(self):
+    def __init__(self, in_c=5):
         super(DetailBranch_pc, self).__init__()
         self.S1 = nn.Sequential(
-            ConvBNReLU(5, 64, 3, stride=2),
+            ConvBNReLU(in_c, 64, 3, stride=2),
             ConvBNReLU(64, 64, 3, stride=1),
         )
         self.S2 = nn.Sequential(
@@ -35,9 +35,9 @@ class DetailBranch_pc(nn.Module):
         return feat
 
 class StemBlock_pc(nn.Module):
-    def __init__(self):
+    def __init__(self, in_c=5):
         super(StemBlock_pc, self).__init__()
-        self.conv = ConvBNReLU(5, 16, 3, stride=2)
+        self.conv = ConvBNReLU(in_c, 16, 3, stride=2)
         self.left = nn.Sequential(
             ConvBNReLU(16, 8, 1, stride=1, padding=0),
             ConvBNReLU(8, 16, 3, stride=2),
@@ -57,9 +57,9 @@ class StemBlock_pc(nn.Module):
 
 class SemanticBranch_pc(nn.Module):
 
-    def __init__(self):
+    def __init__(self, in_c=5):
         super(SemanticBranch_pc, self).__init__()
-        self.S1S2 = StemBlock_pc()
+        self.S1S2 = StemBlock_pc(in_c)
         self.S3 = nn.Sequential(
             GELayerS2(16, 32),
             GELayerS1(32, 32),

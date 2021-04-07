@@ -24,6 +24,8 @@ from configs import cfg_factory
 from lib.logger import setup_logger
 from lib.kitti_converted import get_data_loader
 
+import time
+
 
 
 class MscEvalV0(object):
@@ -40,7 +42,14 @@ class MscEvalV0(object):
             diter = enumerate(dl)
         else:
             diter = enumerate(tqdm(dl))
+        
+        durations = []
+
         for i, sample in diter:
+            # timer
+            start_time = time.time()
+
+            # sample parsing
             imgs = sample['img'].cuda()
             label = sample['label']
             label = torch.unsqueeze(label, 1)
@@ -68,6 +77,11 @@ class MscEvalV0(object):
                     probs += torch.softmax(logits, dim=1)
             preds = torch.argmax(probs, dim=1)
             keep = label != self.ignore_label
+
+            # timer
+            duration = time.time() - start_time
+            durations.append(duration)
+
             hist += torch.bincount(
                 label[keep] * n_classes + preds[keep],
                 minlength=n_classes ** 2
@@ -75,7 +89,15 @@ class MscEvalV0(object):
         if dist.is_initialized():
             dist.all_reduce(hist, dist.ReduceOp.SUM)
         ious = hist.diag() / (hist.sum(dim=0) + hist.sum(dim=1) - hist.diag())
-        miou = ious.mean()
+        miou = ious[1:].mean()
+
+        heads = ['Car', 'Pedestrian', 'Cyclist', 'mIOU', 'avg_duration']
+        data = ious.tolist()[1:]
+        data.append(miou.item())
+        data.append(np.mean(durations))
+        output_info1 = tabulate([data,], headers=heads, tablefmt='orgtbl')
+        print(output_info1 + '\n')
+
         return miou.item()
 
 @torch.no_grad()
@@ -113,7 +135,11 @@ def evaluate(cfg, weight_pth):
 
     ## evaluator
     heads, mious = eval_model(net, 2, cfg.val_im_root, cfg.val_im_anns, cfg.num_cls)
-    logger.info(tabulate([mious, ], headers=heads, tablefmt='orgtbl'))
+    output_info = tabulate([mious, ], headers=heads, tablefmt='orgtbl')
+    logger.info(output_info)
+
+    # print is for console and IO redirectioning
+    print(output_info + '\n')
 
 
 def parse_args():

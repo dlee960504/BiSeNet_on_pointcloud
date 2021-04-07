@@ -162,7 +162,7 @@ def train():
     epoch_iter = 0
     step = 0
     display_term = 500
-    save_term = 10
+    save_term = 5
 
     # iteration criterion: while step <= cfg.max_iter 
     while epoch_iter <= cfg.max_epoch:
@@ -215,8 +215,9 @@ def train():
             ## upate iterator
             epoch_iter += 1
         
-        except RuntimeError:
-            print('diminishing gradient problem. finish the training')
+        except RuntimeError as e:
+            #print('diminishing gradient problem. finish the training')
+            print(e)
             break
 
     ## dump the final model and evaluate the result
