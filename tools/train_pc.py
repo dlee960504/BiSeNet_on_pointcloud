@@ -50,7 +50,7 @@ def parse_args():
     parse = argparse.ArgumentParser()
     #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
     #parse.add_argument('--port', dest='port', type=int, default=44554,)
-    parse.add_argument('--model', dest='model', type=str, default='bisenetonpc',)
+    parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
     #parse.add_argument('--finetune-from', type=str, default=None,)
     return parse.parse_args()
 
@@ -162,9 +162,10 @@ def train():
     epoch_iter = 0
     step = 0
     display_term = 500
-    save_term = 5
+    save_term = 10
 
-    while step <= cfg.max_iter:
+    # iteration criterion: while step <= cfg.max_iter 
+    while epoch_iter <= cfg.max_epoch:
         try:
             logger.info('epoch {} started...'.format(epoch_iter))
             diter = enumerate(tqdm(dl))
