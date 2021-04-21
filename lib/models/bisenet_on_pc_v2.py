@@ -17,7 +17,7 @@ class ContextAggregationModule(nn.Module):
         super(ContextAggregationModule, self).__init__()
         self.pool = nn.MaxPool2d(7, stride=1, padding=3)
         reduction = 16
-        red_c = int(in_c/reduction)
+        red_c = in_c//reduction
         self.S1 = ConvBNReLU(in_c, red_c, ks=1, padding=0)
         self.S2 = nn.Sequential(
             nn.Conv2d(red_c, in_c, 1, stride=1),
