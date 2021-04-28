@@ -9,6 +9,8 @@ import torch.nn.functional as F
 from lib.models.bisenetv2 import *
 from lib.models.bisenet_on_pc import DetailBranch_pc, StemBlock_pc, SemanticBranch_pc
 
+# -----------------------------------------------------# Context Aggregation Module #--------------------------------------------------------
+
 ## @class ContextAggregationModule
 # @brief Context Aggregation Module from SqueezeSeg V2
 # @details mitigate the impoact of droupout noise
@@ -36,22 +38,138 @@ class ContextAggregationModule(nn.Module):
 
         return res
 
+# --------------------------------------------------------------# CBAM #--------------------------------------------------------------------
+
+
+class AttnConv(nn.Module):
+    def __init__(self, in_chan, out_chan, ks=3, stride=1, padding=1, dilation=1, groups=1, bias=False, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
+        super(AttnConv, self).__init__()
+        self.head_conv = nn.Sequential(
+            nn.Conv2d(in_chan, out_chan, ks, stride=stride, padding=padding, dilation=dilation, groups=groups, bias=bias),
+            nn.BatchNorm2d(out_chan)
+        )
+        self.attn = CBAM(out_chan, reduction_ratio=reduction_ratio, pool_types=pool_types, no_spatial=no_spatial)
+        
+    def forward(self, x):
+        x = self.head_conv(x)
+        x = self.attn(x)
+
+        return x
+
+class CBAM(nn.Module):
+    def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max'], no_spatial=False):
+        super(CBAM, self).__init__()
+        self.ChannelAttn = ChannelAttn(gate_channels, reduction_ratio, pool_types)
+        self.no_spatial = no_spatial
+        if not no_spatial:
+            self.SpatialAttn = SpatialAttn()
+        
+    def forward(self, x):
+        x_out = self.ChannelAttn(x)
+        if not self.no_spatial:
+            x_out = self.SpatialAttn(x_out)
+        return x_out
+
+class ChannelAttn(nn.Module):
+    def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
+        super(ChannelAttn, self).__init__()
+        self.gate_channels = gate_channels
+        self.mlp = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(gate_channels, gate_channels//reduction_ratio),
+            nn.ReLU(),
+            nn.Linear(gate_channels//reduction_ratio, gate_channels)
+        )
+        self.pool_types = pool_types
+    
+    def forward(self, x):
+        channel_att_sum = None
+        for pool_type in self.pool_types:
+            if pool_type == 'avg':
+                avg_pool = F.avg_pool2d(x, (x.size(2), x.size(3)), stride=(x.size(2), x.size(3)))
+                channel_att_raw = self.mlp(avg_pool)
+            elif pool_type == 'max':
+                max_pool = F.max_pool2d(x, (x.size(2), x.size(3)), stride=(x.size(2), x.size(3)))
+                channel_att_raw = self.mlp(max_pool)
+
+            if channel_att_sum is None:
+                channel_att_sum = channel_att_raw
+            else:
+                channel_att_sum += channel_att_raw
+        
+        scale = torch.sigmoid(channel_att_sum).unsqueeze(2).unsqueeze(3).expand_as(x)
+
+        return x * scale
+
+class ChannelPool(nn.Module):
+    def forward(self, x):
+        return torch.cat((torch.max(x,1)[0].unsqueeze(1), torch.mean(x,1).unsqueeze(1)), dim=1)
+
+class SpatialAttn(nn.Module):
+    def __init__(self):
+        super(SpatialAttn, self).__init__()
+        ks = 7
+        self.compress = ChannelPool()
+        self.spatial = nn.Sequential(
+            nn.Conv2d(2, 1, ks, stride=1, padding=(ks - 1)//2),
+            nn.BatchNorm2d(1)
+        )
+
+    def forward(self, x):
+        x_compress = self.compress(x)
+        x_out = self.spatial(x_compress)
+        scale = torch.sigmoid(x_out)
+
+        return x * scale
+
+# ------------------------------------------------------# BiSeNet_pc2 attention #------------------------------------------------------------
+
+class DetailBranch_attn(nn.Module):
+    def __init__(self, in_c=5):
+        super(DetailBranch_attn, self).__init__()
+        self.S1 = nn.Sequential(
+            AttnConv(in_c, 64, ks=3, stride=2),
+            ConvBNReLU(64, 64, 3, stride=1),
+        )
+        self.S2 = nn.Sequential(
+            AttnConv(64, 64, ks=3, stride=2),
+            ConvBNReLU(64, 64, 3, stride=1),
+            ConvBNReLU(64, 64, 3, stride=1),
+        )
+        self.S3 = nn.Sequential(
+            AttnConv(64, 128, ks=3, stride=2),
+            ConvBNReLU(128, 128, 3, stride=1),
+            ConvBNReLU(128, 128, 3, stride=1),
+        )
+
+    def forward(self, x):
+        feat = self.S1(x)
+        feat = self.S2(feat)
+        feat = self.S3(feat)
+        return feat
+
 class BiSeNet_pc2(BiSeNetV2):
 
-    def __init__(self, n_classes, output_aux=True):
+    def __init__(self, n_classes, output_aux=True, cam_on=True):
         super(BiSeNet_pc2, self).__init__(n_classes, output_aux=output_aux)
 
         # input channel must be 5 (x,y,z,r,I)
         in_c = 5
-        c = 64
-        self.init_conv = nn.Conv2d(in_c, c, 3, stride=1, padding=1)
-        self.cam = ContextAggregationModule(c)
-        self.detail = DetailBranch_pc(c)
+        self.cam_on = cam_on
+
+        if self.cam_on:
+            c = 64
+            self.init_conv = nn.Conv2d(in_c, c, 3, stride=1, padding=1)
+            self.cam = ContextAggregationModule(c)
+            new_branches = [self.init_conv, self.cam, self.detail, self.segment]
+        else:
+            c = in_c
+            new_branches = [self.detail, self.segment]
+        #self.detail = DetailBranch_pc(c)
+        self.detail = DetailBranch_attn(c)
         self.segment = SemanticBranch_pc(c)
 
         # initialize new branches
-        new_branches = [self.init_conv, self.cam, self.detail, self.segment]
-
         for branch in new_branches:
             for name, module in branch.named_modules():
                 if isinstance(module, (nn.Conv2d, nn.Linear)):
@@ -69,8 +187,11 @@ class BiSeNet_pc2(BiSeNetV2):
             self.cuda()
 
     def forward(self, x):
-        feat = self.init_conv(x)
-        feat = self.cam(feat)
+        if self.cam_on:
+            feat = self.init_conv(x)
+            feat = self.cam(feat)
+        else:
+            feat = x
         return super(BiSeNet_pc2, self).forward(feat)
 
     
@@ -78,7 +199,7 @@ class BiSeNet_pc2(BiSeNetV2):
 if __name__ == "__main__":
     os.chdir('/home/vision/project/BiSeNet')
     torch.cuda.empty_cache()
-    model = BiSeNet_pc2(n_classes=4, output_aux=False)
+    model = BiSeNet_pc2(n_classes=4, output_aux=False, cam_on=False)
     #print(torch.cuda.memory_summary(device=None, abbreviated=False))
     x = torch.randn(128, 5, 64, 512).cuda()
     #x = x.to(device='cuda')

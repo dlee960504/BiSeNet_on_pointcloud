@@ -194,17 +194,16 @@ def train():
                 loss_meter.update(loss.item())
                 loss_pre_meter.update(loss_pre.item())
                 _ = [mter.update(lss.item()) for mter, lss in zip(loss_aux_meters, loss_aux)]
-
-                ## print training log message
-                if (it + 1) % display_term == 0:
-                    lr = lr_schdr.get_lr()
-                    lr = sum(lr) / len(lr)
-                    print_log_msg(
-                        step, cfg.max_iter, lr, time_meter, loss_meter,
-                        loss_pre_meter, loss_aux_meters)
-
+                
                 ## update iterator
                 step += 1
+
+            ## print training log message
+            lr = lr_schdr.get_lr()
+            lr = sum(lr) / len(lr)
+            print_log_msg(
+                step, cfg.max_iter, lr, time_meter, loss_meter,
+                loss_pre_meter, loss_aux_meters)
 
             if epoch_iter % save_term == 0 and epoch_iter != 0:
                 save_pth = osp.join(cfg.respth,'model_epoch_{}.pth'.format(epoch_iter))
