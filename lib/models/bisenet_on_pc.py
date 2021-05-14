@@ -55,10 +55,10 @@ class StemBlock_pc(nn.Module):
         #print('stem block result: ', feat.size())
         return feat
 
-class SemanticBranch_pc(nn.Module):
+class SegmentBranch_pc(nn.Module):
 
     def __init__(self, in_c=5):
-        super(SemanticBranch_pc, self).__init__()
+        super(SegmentBranch_pc, self).__init__()
         self.S1S2 = StemBlock_pc(in_c)
         self.S3 = nn.Sequential(
             GELayerS2(16, 32),
@@ -91,7 +91,7 @@ class BiSeNet_pc(BiSeNetV2):
     def __init__(self, n_classes, output_aux=True):
         super(BiSeNet_pc, self).__init__(n_classes, output_aux=output_aux)
         self.detail = DetailBranch_pc()
-        self.segment = SemanticBranch_pc()
+        self.segment = SegmentBranch_pc()
 
         # initialize new branches
         new_branches = [self.detail, self.segment]

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from lib.models.bisenetv2 import *
-from lib.models.bisenet_on_pc import DetailBranch_pc, StemBlock_pc, SemanticBranch_pc
+from lib.models.bisenet_on_pc import DetailBranch_pc, StemBlock_pc, SegmentBranch_pc
 
 # -----------------------------------------------------# Context Aggregation Module #--------------------------------------------------------
 
@@ -132,12 +132,12 @@ class DetailBranch_attn(nn.Module):
             ConvBNReLU(64, 64, 3, stride=1),
         )
         self.S2 = nn.Sequential(
-            AttnConv(64, 64, ks=3, stride=2),
+            ConvBNReLU(64, 64, 3, stride=2),
             ConvBNReLU(64, 64, 3, stride=1),
             ConvBNReLU(64, 64, 3, stride=1),
         )
         self.S3 = nn.Sequential(
-            AttnConv(64, 128, ks=3, stride=2),
+            ConvBNReLU(64, 128, 3, stride=2),
             ConvBNReLU(128, 128, 3, stride=1),
             ConvBNReLU(128, 128, 3, stride=1),
         )
@@ -147,6 +147,35 @@ class DetailBranch_attn(nn.Module):
         feat = self.S2(feat)
         feat = self.S3(feat)
         return feat
+
+class StemBlock_attn(nn.Module):
+    def __init__(self, in_c=5):
+        super(StemBlock_attn, self).__init__()
+        self.conv = AttnConv(in_c, 16, ks=3, stride=2)
+        self.left = nn.Sequential(
+            ConvBNReLU(16, 8, 1, stride=1, padding=0),
+            ConvBNReLU(8, 16, 3, stride=2),
+        )
+        self.right = nn.MaxPool2d(
+            kernel_size=3, stride=2, padding=1, ceil_mode=False)
+        self.fuse = ConvBNReLU(32, 16, 3, stride=1)
+
+    def forward(self, x):
+        feat = self.conv(x)
+        feat_left = self.left(feat)
+        feat_right = self.right(feat)
+        feat = torch.cat([feat_left, feat_right], dim=1)
+        feat = self.fuse(feat)
+        #print('stem block result: ', feat.size())
+        return feat
+
+class SegmentBranch_attn(SegmentBranch_pc):
+    
+    def __init__(self, in_c=5):
+        super(SegmentBranch_attn, self).__init__()
+        self.S1S2 = StemBlock_attn(in_c)
+
+# ------------------------------------------------------# BiSeNet_pc2  #---------------------------------------------------------------------
 
 class BiSeNet_pc2(BiSeNetV2):
 
@@ -167,7 +196,7 @@ class BiSeNet_pc2(BiSeNetV2):
             new_branches = [self.detail, self.segment]
         #self.detail = DetailBranch_pc(c)
         self.detail = DetailBranch_attn(c)
-        self.segment = SemanticBranch_pc(c)
+        self.segment = SegmentBranch_attn(c)
 
         # initialize new branches
         for branch in new_branches:
