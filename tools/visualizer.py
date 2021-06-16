@@ -9,8 +9,6 @@ from plyfile import PlyData, PlyElement
 from configs import color_map
 import datetime
 
-
-
 cmap = color_map['bisenetonpc']
 
 def ply2npy(file_dir):
@@ -35,7 +33,7 @@ def ply2npy(file_dir):
     #print("xyz shape: {}".format(xyz.shape))
 
 
-def colorize(preds):
+def colorize_3c(preds):
 
     preds = np.squeeze(preds)
     num_cls = len(cmap)
@@ -47,7 +45,7 @@ def colorize(preds):
 
     return out
 
-def colorize_1c(preds):
+def colorize(preds):
     cmap_1c = []
     for cc in cmap:
         temp = cc[0]<<16 | cc[1]<<8 | cc[0]<<0
@@ -63,31 +61,28 @@ def colorize_1c(preds):
 
     return out
 
-
-
-def back_project(xyz, preds):
+def back_project(xyz, preds, pop_up=False):
     assert preds.shape[2] == 1 and xyz.shape[2] == 3, 'check if XYZRGB'
 
     rgb = np.zeros((preds.shape[0], preds.shape[1]), dtype=int)
-    
-
     points = np.concatenate((xyz, preds), axis=2)
     points = np.reshape(points, (points.shape[0]*points.shape[1], -1), order='C')
     points = points.astype('float32')
 
+    # declare point cloud object
     cloud = pcl.PointCloud_PointXYZRGB()
     cloud.from_array(points)
 
-    # visualize
-    visual = pcl.pcl_visualization.CloudViewing()
-    visual.ShowColorCloud(cloud)
+    if pop_up:
+        # visualize
+        visual = pcl.pcl_visualization.CloudViewing()
+        visual.ShowColorCloud(cloud)
 
-    v = True
-    while v:
-        v = not(visual.WasStopped())
-
+        v = True
+        while v:
+            v = not(visual.WasStopped())
     
-
-if __name__ == '__main__':
-    #streamL515_IR()
-    pass
+    save_dir = '../test/pc/'
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
+    pcl.save(cloud, save_dir + 'segmented_cloud.pcd')    

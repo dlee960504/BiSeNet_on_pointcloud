@@ -45,8 +45,9 @@ def detect(cfg, weight_pth):
     while go:
 
         # data preprocess
-        dl = glob.glob(cfg.test_data_path + '/*.npy')
+        dl = sorted(glob.glob(cfg.test_data_path + '/*.npy'))
         data = np.load(dl[0])
+        print('filename {}'.format(dl[0]))
         img = data[:,:,:5].transpose((2, 0, 1))
         img = np.expand_dims(img, axis=0)
         img = torch.tensor(img, dtype=torch.float).cuda()
@@ -57,7 +58,7 @@ def detect(cfg, weight_pth):
         preds = torch.argmax(probs, dim=1)
 
         # visualize
-        out = visualizer.colorize_1c(np.array(preds.cpu()))
+        out = visualizer.colorize(np.array(preds.cpu()))
 
         visualizer.back_project(data[:,:,:3], out)
 
