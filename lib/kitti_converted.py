@@ -88,14 +88,20 @@ class KITTIconverted(Dataset):
 
         data_path = self.data_paths[idx]
         data = np.load(data_path)
-        img, label = data[:,:,:5], data[:,:,5]
-        #print('inside getitem: ', img.shape, label.shape)
-        sample = {'img': img, 'label': label}
-        if not self.trans_func is None:
-            sample = self.trans_func(sample)
-        sample = self._to_tensor(sample)
-        #img, label = img_lab['img'], img_lab['label']
-        #return img.detach(), label.detach()
+        if self.mode != 'test':
+            img, label = data[:,:,:5], data[:,:,5]
+            #print('inside getitem: ', img.shape, label.shape)
+            sample = {'img': img, 'label': label}
+            if not self.trans_func is None:
+                sample = self.trans_func(sample)
+            sample = self._to_tensor(sample)
+            #img, label = img_lab['img'], img_lab['label']
+            #return img.detach(), label.detach()
+        else:
+            img = data[:,:,:5]
+            img = img.transpose((2, 0, 1))
+            sample = {'img': torch.tensor(img, dtype=torch.float)}
+            
         return sample
 
 def get_data_loader(datapath, batchsize, listpath=None, max_iter=None, mode='train', distributed=False):
@@ -106,6 +112,10 @@ def get_data_loader(datapath, batchsize, listpath=None, max_iter=None, mode='tra
         drop_last = True
     elif mode == 'val':
         #trans_func = TransformationVal()
+        trans_func = None
+        shuffle = False
+        drop_last = False
+    elif mode == 'test':
         trans_func = None
         shuffle = False
         drop_last = False

@@ -89,7 +89,7 @@ class MscEvalV0(object):
                     probs += torch.softmax(logits, dim=1)
             preds = torch.argmax(probs, dim=1)
             keep = label != self.ignore_label
-
+            
             # timer
             duration = time.time() - start_time
             durations.append(duration)

@@ -1,107 +1,17 @@
 import sys, os
-sys.path.append('..')
+
+from torch import convolution
+sys.path.append('.')
 import numpy as np
-from PIL import Image
 import pcl
-import pyrealsense2 as rs
+import pcl.pcl_visualization
 from plyfile import PlyData, PlyElement
 from configs import color_map
 import datetime
 
+
+
 cmap = color_map['bisenetonpc']
-
-# stream pointcloud from L515 and dump into .ply file
-def streamL515(save_path='../datasets/rs_stream'):
-
-    start_time = datetime.datetime.now()
-    # create directory to save the stream
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    
-    try:
-        # context object
-        pipe = rs.pipeline()
-
-        # configure streams
-        config = rs.config()
-        config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-
-        # prepare pointcloud object
-        pc = rs.pointcloud()
-        points = rs.points()
-
-        # start streaming
-        pipe.start(config)
-
-        # colorizer from depth
-        colorizer = rs.colorizer()
-
-        # get frames
-        go = True
-        while go:
-            curr_time = datetime.datetime.now()
-            if (curr_time - start_time).total_seconds() > 60:
-                break
-
-            frames = pipe.wait_for_frames()
-            colorized = colorizer.process(frames)
-
-            # create save_to_ply object
-            ply = rs.save_to_ply(os.path.join(save_path, 'raw_data.ply'))
-            ply.set_option(rs.save_to_ply.option_ply_binary, True)
-            ply.set_option(rs.save_to_ply.option_ply_normals, False)
-            ply.set_option(rs.save_to_ply.option_ply_mesh, False)
-            ply.process(colorized)            
-
-    except Exception as e:
-        print(e)
-        pass
-    finally:
-        pipe.stop()
-
-def streamL515_IR(save_path='../datasets/rs_stream'):
-    start_time = datetime.datetime.now()
-    # create directory to save the stream
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    
-    try:
-        # context object
-        pipe = rs.pipeline()
-
-        # configure streams
-        config = rs.config()
-        config.enable_stream(rs.stream.infrared, 640, 480, rs.format.y8, 30)
-
-        # start streaming
-        pipe.start(config)
-
-        # get frames
-        go = True
-        while go:
-            curr_time = datetime.datetime.now()
-            if (curr_time - start_time).total_seconds() > 60:
-                break
-
-            frames = pipe.wait_for_frames()
-            ir = frames.first(rs.stream.infrared)
-            if not ir:
-                print('frame failure')
-                continue
-            np_img = np.asanyarray(infrared_frame.get_data())
-            np.save(os.path.join(save_path, 'raw_IR'), np_img)
-        
-        pipe.stop()
-          
-
-    except Exception as e:
-        print(e)
-        pass
-    
-    finally:
-        print()
-        #pipe.stop()
-
 
 def ply2npy(file_dir):
     plydata = PlyData.read(file_dir)
@@ -125,23 +35,59 @@ def ply2npy(file_dir):
     #print("xyz shape: {}".format(xyz.shape))
 
 
-def visualize_seg(pred_mask):
-    assert(len(pred_mask.shape) == 2)
+def colorize(preds):
+
+    preds = np.squeeze(preds)
     num_cls = len(cmap)
 
-    out = np.zeross((pred_mask.shape[0], pred_mask.shape[1], 3))
+    out = np.zeros((preds.shape[0], preds.shape[1], 3),dtype=int)
 
     for i in range(num_cls):
-        out[pred_mask==i, :] = cmap[i]
+        out[preds==i, :] = cmap[i]
 
     return out
 
-def back_project(pred_mask, npydata):
-    lidar = np.load(npydata).astype(np.float32, copy=False)[ :, :, :5]
+def colorize_1c(preds):
+    cmap_1c = []
+    for cc in cmap:
+        temp = cc[0]<<16 | cc[1]<<8 | cc[0]<<0
+        cmap_1c.append(temp)
 
-    pred_mask_raw = pred_mask.reshape(-1,1)
+    preds = np.squeeze(preds)
+    num_cls = len(cmap_1c)
+
+    out = np.zeros((preds.shape[0], preds.shape[1], 1),dtype=int)
+
+    for i in range(num_cls):
+        out[preds==i, :] = cmap_1c[i]
+
+    return out
+
+
+
+def back_project(xyz, preds):
+    assert preds.shape[2] == 1 and xyz.shape[2] == 3, 'check if XYZRGB'
+
+    rgb = np.zeros((preds.shape[0], preds.shape[1]), dtype=int)
+    
+
+    points = np.concatenate((xyz, preds), axis=2)
+    points = np.reshape(points, (points.shape[0]*points.shape[1], -1), order='C')
+    points = points.astype('float32')
+
+    cloud = pcl.PointCloud_PointXYZRGB()
+    cloud.from_array(points)
+
+    # visualize
+    visual = pcl.pcl_visualization.CloudViewing()
+    visual.ShowColorCloud(cloud)
+
+    v = True
+    while v:
+        v = not(visual.WasStopped())
+
+    
 
 if __name__ == '__main__':
-    streamL515_IR()
-
-
+    #streamL515_IR()
+    pass
