@@ -21,5 +21,5 @@ def view(pc_path):
 
 
 if __name__ == "__main__":
-    pc_path = '../test/pc/segmented_cloud.pcd'
+    pc_path = '../test/pc/segmented_cloud.ply'
     view(pc_path)

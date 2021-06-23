@@ -85,4 +85,4 @@ def back_project(xyz, preds, pop_up=False):
     save_dir = '../test/pc/'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-    pcl.save(cloud, save_dir + 'segmented_cloud.pcd')    
+    pcl.save(cloud, save_dir + 'segmented_cloud', format='PLY')    

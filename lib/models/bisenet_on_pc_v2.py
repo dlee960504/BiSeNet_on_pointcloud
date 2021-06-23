@@ -175,12 +175,121 @@ class SegmentBranch_attn(SegmentBranch_pc):
         super(SegmentBranch_attn, self).__init__()
         self.S1S2 = StemBlock_attn(in_c)
 
+# ------------------------------------------------------# extend model depth #---------------------------------------------------------------------
+
+class DetailBranch_extended(DetailBranch_pc):
+    def __init__(self, in_c=5):
+        super(DetailBranch_extended, self).__init__(in_c)
+        self.S4 = nn.Sequential(
+            ConvBNReLU(128, 256, 3, stride=2),
+            ConvBNReLU(256, 256, 3, stride=1),
+        )
+
+    def forward(self, x):
+        feat = super(DetailBranch_extended, self).forward(x)
+        feat = self.S4(feat)
+        return feat
+
+class CEBlock_extended(CEBlock):
+    def __init__(self):
+        super(CEBlock, self).__init__()
+        self.bn = nn.BatchNorm2d(256)
+        self.conv_gap = ConvBNReLU(256, 256, 1, stride=1, padding=0)
+        self.conv_last = ConvBNReLU(256, 256, 3, stride=1)
+
+class SegmentBranch_extended(SegmentBranch_pc):
+    def __init__(self, in_c=5):
+        super(SegmentBranch_extended, self).__init__(in_c)
+        #self.S1S2 = StemBlock_attn(in_c)
+        # new conv layer
+        self.S6 = nn.Sequential(
+            GELayerS2(128, 256),
+            GELayerS1(256, 256)
+        )
+        self.ce = CEBlock_extended()
+
+    def forward(self, x):
+        feat2, feat3, feat4, feat5_4, feat5_5 = super(SegmentBranch_extended, self).forward(x)
+        feat6 = self.S6(feat5_4)
+        res = self.ce(feat6)
+        return feat3, feat4, feat5_4, feat6, res
+
+class BGALayer_extended(BGALayer):
+    
+    def __init__(self):
+        super(BGALayer_extended, self).__init__()
+        self.left1 = nn.Sequential(
+            nn.Conv2d(
+                256, 256, kernel_size=3, stride=1,
+                padding=1, groups=256, bias=False),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(
+                256, 256, kernel_size=1, stride=1,
+                padding=0, bias=False),
+        )
+        self.left2 = nn.Sequential(
+            nn.Conv2d(
+                256, 256, kernel_size=3, stride=2,
+                padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.AvgPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=False)
+        )
+        self.right1 = nn.Sequential(
+            nn.Conv2d(
+                256, 256, kernel_size=3, stride=1,
+                padding=1, bias=False),
+            nn.BatchNorm2d(256),
+        )
+        self.right2 = nn.Sequential(
+            nn.Conv2d(
+                256, 256, kernel_size=3, stride=1,
+                padding=1, groups=256, bias=False),
+            nn.BatchNorm2d(256),
+            nn.Conv2d(
+                256, 256, kernel_size=1, stride=1,
+                padding=0, bias=False),
+        )
+        self.up1 = nn.Upsample(scale_factor=4)
+        self.up2 = nn.Upsample(scale_factor=4)
+        ##TODO: does this really has no relu?
+        self.conv = nn.Sequential(
+            nn.Conv2d(
+                256, 256, kernel_size=3, stride=1,
+                padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True), # not shown in paper
+        )
+
+    def forward(self, x_d, x_s):
+        dsize = x_d.size()[2:]
+        left1 = self.left1(x_d)
+        left2 = self.left2(x_d)
+        right1 = self.right1(x_s)
+        right2 = self.right2(x_s)
+        right1 = self.up1(right1)
+        left = left1 * torch.sigmoid(right1)
+        right = left2 * torch.sigmoid(right2)
+        right = self.up2(right)
+        out = self.conv(left + right)
+        return out
+
+
 # ------------------------------------------------------# BiSeNet_pc2  #---------------------------------------------------------------------
 
 class BiSeNet_pc2(BiSeNetV2):
 
     def __init__(self, n_classes, output_aux=True, cam_on=True):
         super(BiSeNet_pc2, self).__init__(n_classes, output_aux=output_aux)
+        self.bga = BGALayer_extended()
+
+        self.head = SegmentHead(256, 1024, n_classes, up_factor=16, aux=False)
+        if self.output_aux:
+            self.aux2 = SegmentHead(32, 256, n_classes, up_factor=8)
+            self.aux3 = SegmentHead(64, 256, n_classes, up_factor=16)
+            self.aux4 = SegmentHead(128, 256, n_classes, up_factor=32)
+            self.aux5_4 = SegmentHead(256, 256, n_classes, up_factor=64)
+
+        self.init_weights()
 
         # input channel must be 5 (x,y,z,r,I)
         in_c = 5
@@ -195,8 +304,10 @@ class BiSeNet_pc2(BiSeNetV2):
             c = in_c
             new_branches = [self.detail, self.segment]
         #self.detail = DetailBranch_pc(c)
-        self.detail = DetailBranch_attn(c)
-        self.segment = SegmentBranch_attn(c)
+        #self.detail = DetailBranch_attn(c)
+        self.detail = DetailBranch_extended(c)
+        #self.segment = SegmentBranch_attn(c)
+        self.segment = SegmentBranch_extended(c)
 
         # initialize new branches
         for branch in new_branches:

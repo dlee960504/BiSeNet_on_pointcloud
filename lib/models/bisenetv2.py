@@ -273,6 +273,7 @@ class BGALayer(nn.Module):
         left = left1 * torch.sigmoid(right1)
         right = left2 * torch.sigmoid(right2)
         right = self.up2(right)
+        import pdb; pdb.set_trace()
         out = self.conv(left + right)
         return out
 
@@ -338,6 +339,7 @@ class BiSeNetV2(nn.Module):
             logits_aux3 = self.aux3(feat3)
             logits_aux4 = self.aux4(feat4)
             logits_aux5_4 = self.aux5_4(feat5_4)
+            #import pdb; pdb.set_trace()
             return logits, logits_aux2, logits_aux3, logits_aux4, logits_aux5_4
         pred = logits.argmax(dim=1)
         print("prediction: ", pred.size())
