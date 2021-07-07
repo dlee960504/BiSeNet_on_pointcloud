@@ -273,7 +273,6 @@ class BGALayer(nn.Module):
         left = left1 * torch.sigmoid(right1)
         right = left2 * torch.sigmoid(right2)
         right = self.up2(right)
-        import pdb; pdb.set_trace()
         out = self.conv(left + right)
         return out
 

@@ -280,14 +280,15 @@ class BiSeNet_pc2(BiSeNetV2):
 
     def __init__(self, n_classes, output_aux=True, cam_on=True):
         super(BiSeNet_pc2, self).__init__(n_classes, output_aux=output_aux)
-        self.bga = BGALayer_extended()
-
-        self.head = SegmentHead(256, 1024, n_classes, up_factor=16, aux=False)
-        if self.output_aux:
-            self.aux2 = SegmentHead(32, 256, n_classes, up_factor=8)
-            self.aux3 = SegmentHead(64, 256, n_classes, up_factor=16)
-            self.aux4 = SegmentHead(128, 256, n_classes, up_factor=32)
-            self.aux5_4 = SegmentHead(256, 256, n_classes, up_factor=64)
+        
+        # extended model
+        # self.bga = BGALayer_extended()
+        # self.head = SegmentHead(256, 1024, n_classes, up_factor=16, aux=False)
+        # if self.output_aux:
+        #     self.aux2 = SegmentHead(32, 256, n_classes, up_factor=8)
+        #     self.aux3 = SegmentHead(64, 256, n_classes, up_factor=16)
+        #     self.aux4 = SegmentHead(128, 256, n_classes, up_factor=32)
+        #     self.aux5_4 = SegmentHead(256, 256, n_classes, up_factor=64)
 
         self.init_weights()
 
@@ -304,10 +305,10 @@ class BiSeNet_pc2(BiSeNetV2):
             c = in_c
             new_branches = [self.detail, self.segment]
         #self.detail = DetailBranch_pc(c)
-        #self.detail = DetailBranch_attn(c)
-        self.detail = DetailBranch_extended(c)
-        #self.segment = SegmentBranch_attn(c)
-        self.segment = SegmentBranch_extended(c)
+        self.detail = DetailBranch_attn(c)
+        #self.detail = DetailBranch_extended(c)
+        self.segment = SegmentBranch_attn(c)
+        #self.segment = SegmentBranch_extended(c)
 
         # initialize new branches
         for branch in new_branches:

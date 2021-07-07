@@ -1,7 +1,7 @@
 import sys, os
 
 from torch import convolution
-sys.path.append('.')
+sys.path.append('..')
 import numpy as np
 import pcl
 import pcl.pcl_visualization
@@ -85,4 +85,11 @@ def back_project(xyz, preds, pop_up=False):
     save_dir = '../test/pc/'
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
-    pcl.save(cloud, save_dir + 'segmented_cloud', format='PLY')    
+    pcl.save(cloud, save_dir + 'segmented_cloud', format='PCD')
+
+if __name__ == '__main__':
+    xyz = np.load('../datasets/Kitti_test/npydata/2011_09_26_drive_0001_0000000000.npy')[:,:,:3]
+    pred = np.load('../../SqueezeSegV3/res/2011_09_26_drive_0001_0000000000_pred.npy')
+    pred = np.expand_dims(pred, axis=2)
+    out = colorize(pred)
+    back_project(xyz, pred, True)

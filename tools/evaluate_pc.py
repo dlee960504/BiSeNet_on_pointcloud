@@ -89,7 +89,9 @@ class MscEvalV0(object):
                     probs += torch.softmax(logits, dim=1)
             preds = torch.argmax(probs, dim=1)
             keep = label != self.ignore_label
-            
+
+            import pdb; pdb.set_trace()
+
             # timer
             duration = time.time() - start_time
             durations.append(duration)
@@ -158,6 +160,69 @@ def evaluate(cfg, weight_pth, use_cpu=False):
     # print is for console and IO redirectioning
     print(output_info + '\n')
 
+def evaluate_ssgv3():
+    pred_path = '../../SqueezeSegV3/res/'
+    ans_path = '../datasets/Kitti_test/npydata/'
+    
+    import glob
+    pred_list = sorted(glob.glob(pred_path + '*.npy'))
+    ans_list = sorted(glob.glob(ans_path + '*.npy'))
+
+    # dummy duration
+    durations = []
+
+    #tensor setting
+    n_classes = 4
+    hist = torch.zeros(n_classes, n_classes).detach()
+
+    for pred, ans in zip(pred_list, ans_list):
+
+        pred_name = os.path.basename(pred).split('_pred.npy')[0]
+        ans_name = os.path.basename(ans).split('.npy')[0]
+
+        assert pred_name == ans_name, 'pred_name: {}, ans_name: {} --> not matching answer'.format(pred_name, ans_name)
+
+        ignore_label=255
+
+        # remapping
+        pred = np.load(pred)
+
+        #import pdb; pdb.set_trace()
+
+        pred = np.where(pred==2, 3, pred) # cyclist
+        pred = np.where(pred==6, 2, pred) # person
+        #pred = np.where(np.any([pred==4, pred==5], axis=0), 1, pred) # other vehicle, truck --> car
+        pred = np.where(pred==4, 0, pred)
+        pred = np.where(np.any([pred==7, pred==8], axis=0), 3, pred) # bicyclist, motorcyclist --> cyclist
+        pred = np.where(np.any([pred==9, np.all([pred>=11, pred<=19], axis=0)], axis=0), 0, pred) # road, sidewalk, other-ground, building, fence, vegetation, trunk, terrain, pole, traffic-sign  --> unlabeled
+        pred = np.where(pred==10, 0, pred) # parking --> unlabeled
+        pred = np.where(pred==5, 0, pred)
+
+        #pdb.set_trace()
+
+        label = np.load(ans)[:,:,5]
+        keep = label != ignore_label
+
+        #duration = time.time() - start_time
+        durations.append(0)
+
+        pred = torch.from_numpy(pred.astype(np.int32))
+        label = torch.from_numpy(label.astype(np.int32))
+
+        hist += torch.bincount(label[keep] * n_classes + pred[keep],minlength=n_classes ** 2).view(n_classes, n_classes)
+        
+    ious = hist.diag() / (hist.sum(dim=0) + hist.sum(dim=1) - hist.diag())
+    miou = ious[1:].mean()
+
+    heads = ['Car', 'Pedestrian', 'Cyclist', 'mIOU', 'avg_duration']
+    data = ious.tolist()[1:]
+    data.append(miou.item())
+    data.append(np.mean(durations))
+    output_info1 = tabulate([data,], headers=heads, tablefmt='orgtbl')
+    print(output_info1 + '\n')
+
+    return miou.item()
+
 
 def parse_args():
     parse = argparse.ArgumentParser()
@@ -178,7 +243,8 @@ def main():
     #    dist.init_process_group(backend='nccl', init_method='tcp://127.0.0.1:{}'.format(args.port), world_size=torch.cuda.device_count(), rank=args.local_rank)
     if not os.path.exists(cfg.respth): os.makedirs(cfg.respth)
     setup_logger('{}-eval'.format(cfg.model_type), cfg.respth)
-    evaluate(cfg, args.weight_pth, use_cpu)
+    #evaluate(cfg, args.weight_pth, use_cpu)
+    evaluate_ssgv3()
 
 
 if __name__ == "__main__":
