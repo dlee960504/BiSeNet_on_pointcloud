@@ -107,7 +107,7 @@ venv.bak/
 ## Coin: 
 data
 data/
-datasets/
+npydata/
 play.py
 preprocess_data.py
 res/
@@ -117,4 +117,8 @@ tensorrt/build/*
 
 # test
 test/
+
+# data
+*.npy
+*.ply
 
