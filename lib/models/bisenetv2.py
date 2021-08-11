@@ -14,6 +14,7 @@ class ConvBNReLU(nn.Module):
                 padding=padding, dilation=dilation,
                 groups=groups, bias=bias)
         self.bn = nn.BatchNorm2d(out_chan)
+        #self.bn = nn.InstanceNorm2d(out_chan)
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
@@ -94,6 +95,7 @@ class CEBlock(nn.Module):
     def __init__(self):
         super(CEBlock, self).__init__()
         self.bn = nn.BatchNorm2d(128)
+        #self.bn = nn.InstanceNorm2d(128)
         self.conv_gap = ConvBNReLU(128, 128, 1, stride=1, padding=0)
         #TODO: in paper here is naive conv2d, no bn-relu
         self.conv_last = ConvBNReLU(128, 128, 3, stride=1)

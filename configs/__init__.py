@@ -14,7 +14,6 @@ class cfg_dict(object):
 
 
 cfg_factory = dict(
-    bisenetv1=cfg_dict(bisenetv1_cfg),
     bisenetv2=cfg_dict(bisenetv2_cfg),
     bisenetonpc=cfg_dict(bisenetonpc_cfg),
     bisenetonpc2=cfg_dict(bisenetonpc2_cfg)

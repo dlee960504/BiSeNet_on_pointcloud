@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 
 import sys
-sys.path.insert(0, '.')
+#sys.path.insert(0, '.')
 import os
 import os.path as osp
 sys.path.append('..')
@@ -14,6 +14,7 @@ import argparse
 from tqdm import tqdm
 import numpy as np
 from tabulate import tabulate
+import yaml
 
 import torch
 import torch.nn as nn
@@ -28,6 +29,8 @@ from lib.ohem_ce_loss import OhemCELoss
 from lib.lr_scheduler import WarmupPolyLrScheduler
 from lib.meters import TimeMeter, AvgMeter
 from lib.logger import setup_logger, print_log_msg
+
+from datasets.semanticKITTI import parser
 
 # apex
 has_apex = True
@@ -51,13 +54,12 @@ def parse_args():
     #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
     #parse.add_argument('--port', dest='port', type=int, default=44554,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
+    parse.add_argument('--data', default='../datasets/semanticKITTI', help='specify where data and data config is')
     #parse.add_argument('--finetune-from', type=str, default=None,)
     return parse.parse_args()
 
 args = parse_args()
 cfg = cfg_factory[args.model]
-
-
 
 def set_model():
     net = model_factory[cfg.model_type](cfg.num_cls)
@@ -128,13 +130,43 @@ def set_meters():
             for i in range(cfg.num_aux_heads)]
     return time_meter, loss_meter, loss_pre_meter, loss_aux_meters
 
+## @brief get parser for semantinc KITTI datset
+def create_parser():
+    try:
+        print('opening data conifg')
+        DATA = yaml.safe_load(open(args.data + '/config/data_cfg.yaml', 'r'))
+    except Exception as e:
+        print(e)
+        exit()
+
+    datadir = args.data
+    data_parser = parser.Parser(root=datadir, 
+                    train_sequences=DATA['split']['sample'], 
+                    valid_sequences=None, 
+                    test_sequences=None, 
+                    labels=DATA['labels'],
+                    color_map=DATA['color_map'],
+                    learning_map=DATA['learning_map'],
+                    learning_map_inv=DATA['learning_map_inv'],
+                    sensor=DATA['dataset']['sensor'],
+                    max_points=DATA['dataset']['max_points'],
+                    batch_size=3,
+                    workers=0,
+                    gt=True,
+                    shuffle_train=False
+                    )
+    
+    return data_parser
+
 
 def train():
     logger = logging.getLogger()
     is_dist = dist.is_initialized()
 
     ## dataset
-    dl = get_data_loader(cfg.im_root, cfg.batch_size, listpath=cfg.train_im_anns, max_iter=cfg.max_iter, mode='train')
+    #dl = get_data_loader(cfg.im_root, cfg.batch_size, listpath=cfg.train_im_anns, max_iter=cfg.max_iter, mode='train')
+    data_parser = create_parser()
+    dl = data_parser.trainloader
 
     ## model
     net, criteria_pre, criteria_aux = set_model()
@@ -170,7 +202,7 @@ def train():
             logger.info('epoch {} started...'.format(epoch_iter))
             diter = enumerate(tqdm(dl))
             for it, sample in diter:
-                #print(it, ' th training loop')
+                
                 im = sample['img'].cuda()
                 lb = sample['label'].cuda()
 

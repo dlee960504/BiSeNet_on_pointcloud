@@ -90,8 +90,6 @@ class MscEvalV0(object):
             preds = torch.argmax(probs, dim=1)
             keep = label != self.ignore_label
 
-            import pdb; pdb.set_trace()
-
             # timer
             duration = time.time() - start_time
             durations.append(duration)
