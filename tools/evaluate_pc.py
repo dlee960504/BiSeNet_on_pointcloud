@@ -243,8 +243,8 @@ def main():
     #    dist.init_process_group(backend='nccl', init_method='tcp://127.0.0.1:{}'.format(args.port), world_size=torch.cuda.device_count(), rank=args.local_rank)
     if not os.path.exists(cfg.respth): os.makedirs(cfg.respth)
     setup_logger('{}-eval'.format(cfg.model_type), cfg.respth)
-    #evaluate(cfg, args.weight_pth, use_cpu)
-    evaluate_ssgv3()
+    evaluate(cfg, args.weight_pth, use_cpu)
+    #evaluate_ssgv3()
 
 
 if __name__ == "__main__":
