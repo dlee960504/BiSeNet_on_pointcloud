@@ -152,7 +152,7 @@ def create_parser():
                     learning_map_inv=DATA['learning_map_inv'],
                     sensor=DATA['dataset']['sensor'],
                     max_points=DATA['dataset']['max_points'],
-                    batch_size=5,
+                    batch_size=6,
                     workers=0,
                     gt=True,
                     shuffle_train=False
