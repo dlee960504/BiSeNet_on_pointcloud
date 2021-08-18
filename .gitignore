@@ -119,4 +119,7 @@ test/
 # data
 *.npy
 *.ply
+*.txt
+labels/
+velodyne/
 

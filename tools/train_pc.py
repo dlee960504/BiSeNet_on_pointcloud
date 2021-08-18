@@ -55,6 +55,8 @@ def parse_args():
     #parse.add_argument('--port', dest='port', type=int, default=44554,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
     parse.add_argument('--data', default='../datasets/semanticKITTI', help='specify where data and data config is')
+    parse.add_argument('--pth_dir', required=False, help='dir to pth file from which training will resume')
+    parse.add_argument('--start_epoch', default=0, type=int, required=False, help='starting epoch if fine tuning')
     #parse.add_argument('--finetune-from', type=str, default=None,)
     return parse.parse_args()
 
@@ -63,8 +65,8 @@ cfg = cfg_factory[args.model]
 
 def set_model():
     net = model_factory[cfg.model_type](cfg.num_cls)
-    # if not args.finetune_from is None:
-    #     net.load_state_dict(torch.load(args.finetune_from, map_location='cpu'))
+    if not args.pth_dir is None:
+         net.load_state_dict(torch.load(args.pth_dir, map_location='cuda'))
     if cfg.use_sync_bn: net = set_syncbn(net)
     net.to(dtype=torch.float)
     net.cuda()
@@ -191,7 +193,7 @@ def train():
         warmup_ratio=0.1, warmup='exp', last_epoch=-1,)
 
     ## train loop
-    epoch_iter = 0
+    epoch_iter = args.start_epoch
     step = 0
     display_term = 500
     save_term = 5
