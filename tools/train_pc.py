@@ -143,7 +143,7 @@ def create_parser():
 
     datadir = args.data
     data_parser = parser.Parser(root=datadir, 
-                    train_sequences=DATA['split']['sample'], 
+                    train_sequences=DATA['split']['train'], 
                     valid_sequences=None, 
                     test_sequences=None, 
                     labels=DATA['labels'],
@@ -152,7 +152,7 @@ def create_parser():
                     learning_map_inv=DATA['learning_map_inv'],
                     sensor=DATA['dataset']['sensor'],
                     max_points=DATA['dataset']['max_points'],
-                    batch_size=3,
+                    batch_size=5,
                     workers=0,
                     gt=True,
                     shuffle_train=False
@@ -196,7 +196,7 @@ def train():
     epoch_iter = args.start_epoch
     step = 0
     display_term = 500
-    save_term = 5
+    save_term = 2
 
     # iteration criterion: while step <= cfg.max_iter 
     while epoch_iter <= cfg.max_epoch:
