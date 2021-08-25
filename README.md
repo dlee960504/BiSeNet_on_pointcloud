@@ -1,97 +1,54 @@
-# BiSeNetV1 & BiSeNetV2
+BiSeNet on Point Cloud data
+===========================
+Point Cloud를 구면좌표계로 투영시키켜서 2D 이미지를 만들고 이것을 기존 이미지 시맨틱 세그멘테이션 알고리즘인 BiSeNet을 활용하여 세그멘테이션하는 모델입니다.
 
-My implementation of [BiSeNetV1](https://arxiv.org/abs/1808.00897) and [BiSeNetV2](https://arxiv.org/abs/1808.00897).
+#### 참고사항
+이후에 서술할 설명들에서 상대 위치들과 console 명령어들은 모두 root 디렉토리를 기준으로 기술되어 있습니다.
 
+## About Semantic KITTI
+본 모델은 초반에는 일반적인 KITTI 데이터셋을 활용하여 학습 및 성능 평가가 진행되었으며 Car, Cyclist, Pedestrian, unlabeled 4개의 카테고리에 대해 예측을 진행했습니다. ~~그러나, 이 후 더 자세한 라벨링인 된 Semantic KITTI 데이터셋을 활용하여 학습이 진행되었습니다.~~ (2021/08/25 수정) 학습을 다시 진행해야 합니다. Semnatic KITTI는 unlabeled를 포함하여 총 20가지 클래스로 라벨링이 되어 있기 때문에 *./configs/bisenetonpc2.py* 파일내에 저장된 모델 설정중 num_cls 속성을 20으로 설정하면 됩니다.
 
-The mIOU evaluation result of the models trained and evaluated on cityscapes train/val set is:
-| none | ss | ssc | msf | mscf | fps(fp16/fp32) | link |
-|------|:--:|:---:|:---:|:----:|:---:|:----:|
-| bisenetv1 | 75.55 | 76.90 | 77.40 | 78.91 | 60/19 | [download](https://drive.google.com/file/d/140MBBAt49N1z1wsKueoFA6HB_QuYud8i/view?usp=sharing) |
-| bisenetv2 | 74.12 | 74.18 | 75.89 | 75.87 | 50/16 | [download](https://drive.google.com/file/d/1qq38u9JT4pp1ubecGLTCHHtqwntH0FCY/view?usp=sharing) |
+## References
+본 모델은 SqueezeSeg에서 영감을 받아 BiSeNet v2 모델을 적용시켜본 프로젝트입니다. 추가적인 이론적 배경이 필요하시면 해당 논문들을 참고해주세요.
 
-> Where **ss** means single scale evaluation, **ssc** means single scale crop evaluation, **msf** means multi-scale evaluation with flip augment, and **mscf** means multi-scale crop evaluation with flip evaluation. The eval scales of multi-scales evaluation are `[0.5, 0.75, 1.0, 1.25, 1.5, 1.75]`, and the crop size of crop evaluation is `[1024, 1024]`.
+SqueezeSeg: [[paper]][ssg_paper] [[git]][ssg_git]
 
-> The fps is tested in different way from the paper. For more information, please see [here](./tensorrt).
+SqueezeSeg v2: [[paper]][ssg2_paper] [[git]][ssg2_git]
 
-Note that the model has a big variance, which means that the results of training for many times would vary within a relatively big margin. For example, if you train bisenetv2 for many times, you will observe that the result of **ss** evaluation of bisenetv2 varies between 72.1-74.4. 
+SqueezeSeg v3: [[paper]][ssg3_paper] [[git]][ssg3_git]
 
+BiSeNet v2: [[paper]][bise_paper] [[git]][bise_git]
 
-## platform
-My platform is like this: 
-* ubuntu 18.04
-* nvidia Tesla T4 gpu, driver 450.51.05
-* cuda 10.2
-* cudnn 7
-* miniconda python 3.6.9
-* pytorch 1.6.0
-
-
-## get start
-With a pretrained weight, you can run inference on an single image like this: 
+## How to train
+ 학습에는 config와 실제 data가 필요하며 config는 *./dataset/semanticKITTI/config*에 *data_cfg.yaml, semantic-kitti-all.yaml, semantic-kitti.yaml* 파일로 저장되어있습니다. 학습을 위한 설정들은 *data_cfg.yaml* 파일에 기록되어 있어 수정이 필요한 경우 yaml 파일을 수정하면 됩니다.
+실제 데이터는 *./dataset/semanticKITTI/Sequences*에 시퀀스별로 인덱스가 매겨져 저장되어 있으며 각 시퀀스 내에는 *velodyne*과 *labels* 폴더가 있어서 *velodyne* 폴더 내부에는 point cloud 데이터가 bin 파일로, *labels* 폴더 내부에는 gt가 label파일로 저장되어있어야 합니다.
+데이터가 제대로 위치해 있다면 기본적인 설정으로 학습을 진행시키기 위해서는 다음과 같이 콘솔에 입력하면 됩니다:
+```console
+cd tools
+python train_pc.py
 ```
-$ python tools/demo.py --model bisenetv2 --weight-path /path/to/your/weights.pth --img-path ./example.png
-```
-This would run inference on the image and save the result image to `./res.jpg`.
+학습결과는 root 디렉토리에 res 폴더가 생기며 그곳에 2 epoch 마다 저장됩니다.
 
+Semantic KITTI는 point cloud 데이터셋이지만, 실제 모델은 구면좌표계에 투영된 이미지를 input으로 받기 때문에 모델에 입력되기전에 변환이 되어야합니다. 해당 과정은 *./datasets/semanticKITTI*에 위치한 *parser.py* 및 *laserscan.py, laserscanvis.py*에 의해 진행됩니다. parser는 *./tools/train_pc.py* 파일로 import 되어 호출되어 좌표변환된 데이터를 공급하는 dataloader를 반환합니다.
 
-## prepare dataset
-
-1.cityscapes  
-
-Register and download the dataset from the official [website](https://www.cityscapes-dataset.com/). Then decompress them into the `datasets/cityscapes` directory:  
-```
-$ mv /path/to/leftImg8bit_trainvaltest.zip datasets/cityscapes
-$ mv /path/to/gtFine_trainvaltest.zip datasets/cityscapes
-$ cd datasets/cityscapes
-$ unzip leftImg8bit_trainvaltest.zip
-$ unzip gtFine_trainvaltest.zip
+Fine Tuning을 위해서 학습은 저장된 checkpoint에서 부터 시작할 수도 있습니다. 이를 위해선 *train_pc.py*를 실행시킬때 ***--pth_dir*** 와 ***--start_epoch*** 매개변수를 추가해주면 됩니다. ***--pth_dir***의 경우 저장된 checkpoint파일(~.pth)의 주소를 입력하고 ***--start_epoch***은 불러온 checkpoint파일에서 학습을 재개할 때 시작할 epoch 입니다. 가령, 70번째 epoch까지 학습이 진행된 checkpoint로 부터 학습을 재개할 때, ***--start_epoch*** 매개변수로 71을 입력해야합니다. 예시는 다음과 같습니다:
+```console
+cd tools
+python train_pc.py --pth_dir (path_to_pth_file) --start_epoch (starting_epoch)
 ```
 
-2.custom dataset  
-
-If you want to train on your own dataset, you should generate annotation files first with the format like this: 
-```
-munster_000002_000019_leftImg8bit.png,munster_000002_000019_gtFine_labelIds.png
-frankfurt_000001_079206_leftImg8bit.png,frankfurt_000001_079206_gtFine_labelIds.png
-...
-```
-Each line is a pair of training sample and ground truth image path, which are separated by a single comma `,`.   
-Then you need to change the field of `im_root` and `train/val_im_anns` in the configuration files.
-
-## train
-In order to train the model, you can run command like this: 
-```
-$ export CUDA_VISIBLE_DEVICES=0,1
-
-# if you want to train with apex
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --model bisenetv2 # or bisenetv1
-
-# if you want to train with pytorch fp16 feature from torch 1.6
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train_amp.py --model bisenetv2 # or bisenetv1
+## How to evaluate
+모델의 성능 평가는 변환된 구면좌표계의 차원에서의 라벨과 비교하여 진행됩니다. 성능 평가에서는 학습시 config를 사용하므로 별도로 yaml파일을 작성할 필요가 없습니다. 성능 평가는 기본적으로 *./res/model_final.pth*를 가져와서 진행되도록 설정되어 있으나 원하는 checkpoint 파일로 실행시 입력해줄 수 있습니다. 학습시와 동일하게 ***--pth_dir*** 매개변수를 추가하여 원하는 checkpoint 파일의 디렉토리를 입력해주면 됩니다. 성능 평가를 cpu를 사용하여 진행하고 싶을때는 ***--cpu*** 옵션을 사용하면 cpu에서 성능평가가 진행되도록 되어있습니다. 이 밖에도 ***--model*** 옵션과 ***--data_dir*** 옵션이 있어서 모델과 데이터를 설정할 수 있으나, 모델의 경우 bisenetonpc2를 테스트하기 위해 따로 설정할 필요가 없고, 데이터 또한 SemanticKITTI를 사용하지 않는 경우 외에는 설정할 필요가 없습니다. 예시는 다음과 같습니다:
+```console
+cd tools
+python evaluate_pc.py --pth_dir (path_to_pth_file) --cpu
 ```
 
-Note that though `bisenetv2` has fewer flops, it requires much more training iterations. The the training time of `bisenetv1` is shorter.
-
-
-## finetune from trained model
-You can also load the trained model weights and finetune from it:
-```
-$ export CUDA_VISIBLE_DEVICES=0,1
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train.py --finetune-from ./res/model_final.pth --model bisenetv2 # or bisenetv1
-
-# same with pytorch fp16 feature
-$ python -m torch.distributed.launch --nproc_per_node=2 tools/train_amp.py --finetune-from ./res/model_final.pth --model bisenetv2 # or bisenetv1
-```
-
-
-## eval pretrained models
-You can also evaluate a trained model like this: 
-```
-$ python tools/evaluate.py --model bisenetv1 --weight-path /path/to/your/weight.pth
-```
-
-## Infer with tensorrt
-You can go to [tensorrt](./tensorrt) For details.
-
-
-### Be aware that this is the refactored version of the original codebase. You can go to the `old` directory for original implementation.
+[ssg_paper]: https://arxiv.org/abs/1710.07368
+[ssg_git]: https://github.com/BichenWuUCB/SqueezeSeg
+[ssg2_paper]: https://arxiv.org/abs/1809.08495
+[ssg2_git]: https://github.com/xuanyuzhou98/SqueezeSegV2
+[ssg3_paper]: https://arxiv.org/abs/2004.01803
+[ssg3_git]: https://github.com/chenfengxu714/SqueezeSegV3
+[bise_paper]: https://arxiv.org/abs/2004.02147
+[bise_git]: https://github.com/CoinCheung/BiSeNet

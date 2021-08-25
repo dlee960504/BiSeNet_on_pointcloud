@@ -7,7 +7,7 @@ sys.path.append('..')
 import os
 import logging
 import argparse
-import math
+import yaml
 from tabulate import tabulate
 
 from tqdm import tqdm
@@ -19,6 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributed as dist
 
+from datasets.semanticKITTI import parser
 from lib.models import model_factory
 from configs import cfg_factory
 from lib.logger import setup_logger
@@ -30,7 +31,7 @@ import time
 
 class MscEvalV0(object):
 
-    def __init__(self, scales=(0.5, ), flip=False, ignore_label=255, use_cpu=False):
+    def __init__(self, scales=(0.5, ), flip=False, ignore_label=0, use_cpu=False):
         self.scales = scales
         self.flip = flip
         self.ignore_label = ignore_label
@@ -90,12 +91,10 @@ class MscEvalV0(object):
             preds = torch.argmax(probs, dim=1)
             keep = label != self.ignore_label
 
-            import pdb; pdb.set_trace()
-
             # timer
             duration = time.time() - start_time
             durations.append(duration)
-
+            import pdb; pdb.set_trace()
             hist += torch.bincount(
                 label[keep] * n_classes + preds[keep],
                 minlength=n_classes ** 2
@@ -114,10 +113,48 @@ class MscEvalV0(object):
 
         return miou.item()
 
+def parse_args():
+    parse = argparse.ArgumentParser()
+    #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
+    parse.add_argument('--pth_dir', dest='weight_pth', type=str, default='../res/model_final.pth',)
+    #parse.add_argument('--port', dest='port', type=int, default=44553,)
+    parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
+    parse.add_argument('--cpu', action='store_true', default=False, required=False)
+    parse.add_argument('--data_dir', default='../datasets/semanticKITTI', help='specify where data and data config is')
+    return parse.parse_args()
+
+## @brief get parser for semantinc KITTI datset
+def create_parser(data_dir):
+    try:
+        print('opening data conifg')
+        DATA = yaml.safe_load(open(data_dir + '/config/data_cfg.yaml', 'r'))
+    except Exception as e:
+        print(e)
+        exit()
+
+    data_parser = parser.Parser(root=data_dir, 
+                    train_sequences=None, 
+                    valid_sequences=DATA['split']['valid'], 
+                    test_sequences=None, 
+                    labels=DATA['labels'],
+                    color_map=DATA['color_map'],
+                    learning_map=DATA['learning_map'],
+                    learning_map_inv=DATA['learning_map_inv'],
+                    sensor=DATA['dataset']['sensor'],
+                    max_points=DATA['dataset']['max_points'],
+                    batch_size=5,
+                    workers=0,
+                    gt=True,
+                    shuffle_train=False
+                    )
+    
+    return data_parser
+
 @torch.no_grad()
-def eval_model(net, batch_size, im_root, im_ann, num_cls, use_cpu=False):
+def eval_model(net, data_dir, num_cls, use_cpu=False):
     is_dist = dist.is_initialized()
-    dl = get_data_loader(im_root, batch_size, listpath=im_ann, mode='val')
+    eval_parser = create_parser(data_dir)
+    dl = eval_parser.validloader
     net.eval()
 
     heads, mious = [], []
@@ -127,12 +164,12 @@ def eval_model(net, batch_size, im_root, im_ann, num_cls, use_cpu=False):
     mIOU = single_scale(net, dl, num_cls)
     heads.append('single_scale')
     mious.append(mIOU)
-    logger.info('single mIOU is: %s\n', mIOU)    
+    logger.info('single mIOU is: %s\n', mIOU)
 
     return heads, mious
 
 
-def evaluate(cfg, weight_pth, use_cpu=False):
+def evaluate(cfg, weight_pth, data_dir, use_cpu=False):
     logger = logging.getLogger()
 
     ## model
@@ -153,7 +190,7 @@ def evaluate(cfg, weight_pth, use_cpu=False):
         net = nn.parallel.DistributedDataParallel(net, device_ids=[local_rank, ], output_device=local_rank)
 
     ## evaluator
-    heads, mious = eval_model(net, 2, cfg.val_im_root, cfg.val_im_anns, cfg.num_cls, use_cpu)
+    heads, mious = eval_model(net, data_dir, cfg.num_cls, use_cpu)
     output_info = tabulate([mious, ], headers=heads, tablefmt='orgtbl')
     logger.info(output_info)
 
@@ -223,17 +260,6 @@ def evaluate_ssgv3():
 
     return miou.item()
 
-
-def parse_args():
-    parse = argparse.ArgumentParser()
-    #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
-    parse.add_argument('--weight_path', dest='weight_pth', type=str, default='../res/model_final.pth',)
-    #parse.add_argument('--port', dest='port', type=int, default=44553,)
-    parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
-    parse.add_argument('--cpu', action='store_true', default=False, required=False)
-    return parse.parse_args()
-
-
 def main():
     args = parse_args()
     cfg = cfg_factory[args.model]
@@ -243,7 +269,7 @@ def main():
     #    dist.init_process_group(backend='nccl', init_method='tcp://127.0.0.1:{}'.format(args.port), world_size=torch.cuda.device_count(), rank=args.local_rank)
     if not os.path.exists(cfg.respth): os.makedirs(cfg.respth)
     setup_logger('{}-eval'.format(cfg.model_type), cfg.respth)
-    evaluate(cfg, args.weight_pth, use_cpu)
+    evaluate(cfg, args.weight_pth, args.data_dir, use_cpu)
     #evaluate_ssgv3()
 
 

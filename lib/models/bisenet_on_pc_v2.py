@@ -304,10 +304,11 @@ class BiSeNet_pc2(BiSeNetV2):
         else:
             c = in_c
             new_branches = [self.detail, self.segment]
-        #self.detail = DetailBranch_pc(c)
-        self.detail = DetailBranch_attn(c)
+        self.detail = DetailBranch_pc(c)
+        self.segment = SegmentBranch_pc(c)
+        #self.detail = DetailBranch_attn(c)
         #self.detail = DetailBranch_extended(c)
-        self.segment = SegmentBranch_attn(c)
+        #self.segment = SegmentBranch_attn(c)
         #self.segment = SegmentBranch_extended(c)
 
         # initialize new branches
