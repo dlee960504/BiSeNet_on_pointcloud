@@ -8,13 +8,13 @@ Point Cloud를 구면좌표계로 투영시키켜서 2D 이미지를 만들고 �
 ## References
 본 모델은 SqueezeSeg에서 영감을 받아 BiSeNet v2 모델을 적용시켜본 프로젝트입니다. 추가적인 이론적 배경이 필요하시면 해당 논문들을 참고해주세요.
 
-SqueezeSeg: [paper][ssg_paper][git][ssg_git]
+SqueezeSeg: [paper][ssg_paper] [git][ssg_git]
 
-SqueezeSeg v2: [paper][ssg2_paper][git][ssg2_git]
+SqueezeSeg v2: [paper][ssg2_paper] [git][ssg2_git]
 
-SqueezeSeg v3: [paper][ssg3_paper][git][ssg3_git]
+SqueezeSeg v3: [paper][ssg3_paper] [git][ssg3_git]
 
-BiSeNet v2: [paper][bise_paper][git][bise_git]
+BiSeNet v2: [paper][bise_paper] [git][bise_git]
 
 
 ## How to train
