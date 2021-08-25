@@ -2,20 +2,22 @@ BiSeNet on Point Cloud data
 ===========================
 Point Cloud를 구면좌표계로 투영시키켜서 2D 이미지를 만들고 이것을 기존 이미지 시맨틱 세그멘테이션 알고리즘인 BiSeNet을 활용하여 세그멘테이션하는 모델입니다.
 
+#### 참고사항
+이후에 서술할 설명들에서 상대 위치들과 console 명령어들은 모두 root 디렉토리를 기준으로 기술되어 있습니다.
+
 ## About Semantic KITTI
 본 모델은 초반에는 일반적인 KITTI 데이터셋을 활용하여 학습 및 성능 평가가 진행되었으며 Car, Cyclist, Pedestrian, unlabeled 4개의 카테고리에 대해 예측을 진행했습니다. ~~그러나, 이 후 더 자세한 라벨링인 된 Semantic KITTI 데이터셋을 활용하여 학습이 진행되었습니다.~~ (2021/08/25 수정) 학습을 다시 진행해야 합니다. Semnatic KITTI는 unlabeled를 포함하여 총 20가지 클래스로 라벨링이 되어 있기 때문에 *./configs/bisenetonpc2.py* 파일내에 저장된 모델 설정중 num_cls 속성을 20으로 설정하면 됩니다.
 
 ## References
 본 모델은 SqueezeSeg에서 영감을 받아 BiSeNet v2 모델을 적용시켜본 프로젝트입니다. 추가적인 이론적 배경이 필요하시면 해당 논문들을 참고해주세요.
 
-SqueezeSeg[[paper]][ssg_paper] [[git]][ssg_git]
+SqueezeSeg: [[paper]][ssg_paper] [[git]][ssg_git]
 
 SqueezeSeg v2: [[paper]][ssg2_paper] [[git]][ssg2_git]
 
 SqueezeSeg v3: [[paper]][ssg3_paper] [[git]][ssg3_git]
 
 BiSeNet v2: [[paper]][bise_paper] [[git]][bise_git]
-
 
 ## How to train
  학습에는 config와 실제 data가 필요하며 config는 *./dataset/semanticKITTI/config*에 *data_cfg.yaml, semantic-kitti-all.yaml, semantic-kitti.yaml* 파일로 저장되어있습니다. 학습을 위한 설정들은 *data_cfg.yaml* 파일에 기록되어 있어 수정이 필요한 경우 yaml 파일을 수정하면 됩니다.
