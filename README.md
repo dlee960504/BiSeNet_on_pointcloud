@@ -44,6 +44,30 @@ cd tools
 python evaluate_pc.py --pth_dir (path_to_pth_file) --cpu
 ```
 
+## Customize
+모델 파일들은 *./lib/models* 폴더 내에 위치해 있으므로 필요하다면 해당 디렉토리내에 새 모델을 만들거나 기존 모델을 수정할 수 있습니다. (2021/08/25 기준) 최신 모델은 디렉토리내에 *bisenet_on_pc_v2.py*에 저장되어 있습니다. 
+
+### Model Factory
+*./lib/models* 폴더 내의 *__init__.py* 파일에 *model_factory* dict가 선언되어 있으며 학습 및 성능 평가시 *./configs*에 있는 설정 파일에서 *model_type* 변수를 이용하여 *model_factory*로 부터 필요한 모델을 호출합니다. 따라서, 새로운 모델을 만드면 *model_factory*에 추가하여 config파일에 맞게 설정을 해야합니다.
+
+### bisenet_on_pc.py
+point cloud에 적용하기 위해 Detail branch와 Segment branch를 수정한 모델입니다. *BiSeNet_pc* 클래스는 *bisenetv2.py*에 저장된 기본 *BiSeNetV2* 클래스를 상속받아서 수정되었습니다.
+
+### bisenet_on_pc_v2.py
+단순히 SqueezeSeg와 BiSeNet v2를 합쳤을 때 만족할 만한 성능이 나오지 않아 여러가지 모듈들을 추가해놓은 모델입니다. 다음과 같은 추가적인 방안들이 구현되어 있습니다:
+
+    1. Context Aggregaton Module
+    2. Convolutional Bottleneck Attention Module *
+    3. Deeper Semantic Branch
+
+**[CBAM][cbam]*
+
+*bisenet_on_pc_v2.py* 내의 *BiSeNet_pc2* 클래스는 *bisenetv2.py*에 저장된 기본 *BiSeNetV2* 클래스를 상속받아서 수정되었으며 *bisenet_on_pc.py*에서 *DetailBranch_pc, SegmentBranch_pc*를 import해와서 사용합니다.
+
+## 그 외 기타
+그 외 point cloud와 관련하여 추가적인 파일들이 *./tools* 디렉토리 내에 저장되었습니다.
+*pc_view.py* 같은 경우 pcl_viewer를 활용하여 point cloud 파일(~.pcd, ~.ply)을 볼 수 있게 해줍니다. *visualizer.py*는 모델로 추출한 구면 좌표계 이미지를 다시 point cloud로 back project할 수 있게 해주는 툴입니다. 각각 모두 테스트해 볼 수 있도록 샘플코드도 추가되어 있습니다.
+
 [ssg_paper]: https://arxiv.org/abs/1710.07368
 [ssg_git]: https://github.com/BichenWuUCB/SqueezeSeg
 [ssg2_paper]: https://arxiv.org/abs/1809.08495
@@ -52,3 +76,4 @@ python evaluate_pc.py --pth_dir (path_to_pth_file) --cpu
 [ssg3_git]: https://github.com/chenfengxu714/SqueezeSegV3
 [bise_paper]: https://arxiv.org/abs/2004.02147
 [bise_git]: https://github.com/CoinCheung/BiSeNet
+[cbam]: https://github.com/Jongchan/attention-module
