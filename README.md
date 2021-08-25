@@ -57,9 +57,11 @@ point cloud에 적용하기 위해 Detail branch와 Segment branch를 수정한 
 단순히 SqueezeSeg와 BiSeNet v2를 합쳤을 때 만족할 만한 성능이 나오지 않아 여러가지 모듈들을 추가해놓은 모델입니다. 다음과 같은 추가적인 방안들이 구현되어 있습니다:
 
     1. Context Aggregaton Module
-    2. Convolutional Bottleneck Attention Modul [(CBAM)][cbam]
+    2. Convolutional Bottleneck Attention Module *
     3. Deeper Semantic Branch
-    
+
+**[CBAM][cbam]*
+
 *bisenet_on_pc_v2.py* 내의 *BiSeNet_pc2* 클래스는 *bisenetv2.py*에 저장된 기본 *BiSeNetV2* 클래스를 상속받아서 수정되었으며 *bisenet_on_pc.py*에서 *DetailBranch_pc, SegmentBranch_pc*를 import해와서 사용합니다.
 
 ## 그 외 기타
