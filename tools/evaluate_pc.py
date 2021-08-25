@@ -31,7 +31,7 @@ import time
 
 class MscEvalV0(object):
 
-    def __init__(self, scales=(0.5, ), flip=False, ignore_label=255, use_cpu=False):
+    def __init__(self, scales=(0.5, ), flip=False, ignore_label=0, use_cpu=False):
         self.scales = scales
         self.flip = flip
         self.ignore_label = ignore_label
@@ -94,7 +94,7 @@ class MscEvalV0(object):
             # timer
             duration = time.time() - start_time
             durations.append(duration)
-
+            import pdb; pdb.set_trace()
             hist += torch.bincount(
                 label[keep] * n_classes + preds[keep],
                 minlength=n_classes ** 2
@@ -116,7 +116,7 @@ class MscEvalV0(object):
 def parse_args():
     parse = argparse.ArgumentParser()
     #parse.add_argument('--local_rank', dest='local_rank', type=int, default=-1,)
-    parse.add_argument('--weight_path', dest='weight_pth', type=str, default='../res/model_final.pth',)
+    parse.add_argument('--pth_dir', dest='weight_pth', type=str, default='../res/model_final.pth',)
     #parse.add_argument('--port', dest='port', type=int, default=44553,)
     parse.add_argument('--model', dest='model', type=str, default='bisenetonpc2',)
     parse.add_argument('--cpu', action='store_true', default=False, required=False)
@@ -154,7 +154,7 @@ def create_parser(data_dir):
 def eval_model(net, data_dir, num_cls, use_cpu=False):
     is_dist = dist.is_initialized()
     eval_parser = create_parser(data_dir)
-    dl = eval_parser.validloader()
+    dl = eval_parser.validloader
     net.eval()
 
     heads, mious = [], []
@@ -164,7 +164,7 @@ def eval_model(net, data_dir, num_cls, use_cpu=False):
     mIOU = single_scale(net, dl, num_cls)
     heads.append('single_scale')
     mious.append(mIOU)
-    logger.info('single mIOU is: %s\n', mIOU)    
+    logger.info('single mIOU is: %s\n', mIOU)
 
     return heads, mious
 

@@ -14,7 +14,7 @@ else:
 
 cfg = dict(
     model_type='bisenetonpc2',
-    num_cls=19,
+    num_cls=20,
     num_aux_heads=4,
     lr_start = 5e-2,
     weight_decay=5e-4,
